@@ -1,4 +1,3 @@
-import Database from 'better-sqlite3';
 import pg from 'pg';
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -10,7 +9,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATABASE_URL = process.env.DATABASE_URL;
 const USE_SQLITE = process.env.USE_SQLITE_FOR_DEV === 'true' || !DATABASE_URL;
 
-let sqliteDb: Database.Database | null = null;
+type SqliteDatabase = import('better-sqlite3').Database;
+let sqliteDb: SqliteDatabase | null = null;
 let pgPool: pg.Pool | null = null;
 
 // Convert SQLite ? placeholders to Postgres $1, $2, ...
@@ -25,6 +25,16 @@ export function isPostgres(): boolean {
 
 export async function initDb(): Promise<void> {
   if (USE_SQLITE) {
+    let Database: typeof import('better-sqlite3').default;
+    try {
+      const mod = await import('better-sqlite3');
+      Database = mod.default;
+    } catch (e) {
+      throw new Error(
+        'better-sqlite3 is required for SQLite mode but failed to load (often due to GLIBC on hosting). ' +
+          'Set DATABASE_URL to use Postgres instead, or install better-sqlite3 locally.'
+      );
+    }
     sqliteDb = new Database('app.db');
     runSqliteSchema();
     return;
@@ -437,9 +447,9 @@ export async function run(sql: string, params: any[] = []): Promise<void> {
   if (USE_SQLITE && sqliteDb) {
     const stmt = sqliteDb.prepare(sql);
     if (params.length) {
-      (stmt.run as (...args: any[]) => Database.RunResult)(...params);
+      (stmt.run as (...args: any[]) => import('better-sqlite3').RunResult)(...params);
     } else {
-      (stmt.run as () => Database.RunResult)();
+      (stmt.run as () => import('better-sqlite3').RunResult)();
     }
     return;
   }

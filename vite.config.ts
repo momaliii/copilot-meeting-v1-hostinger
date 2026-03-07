@@ -21,6 +21,7 @@ export default defineConfig(() => {
           start_url: '/',
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           runtimeCaching: [
             {
