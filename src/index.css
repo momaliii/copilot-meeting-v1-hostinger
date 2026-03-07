@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --font-heading: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+[dir="rtl"] {
+  --font-heading: "Noto Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Noto Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+@keyframes announcement-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.announcement-marquee {
+  display: inline-block;
+  animation: announcement-marquee 20s linear infinite;
+}

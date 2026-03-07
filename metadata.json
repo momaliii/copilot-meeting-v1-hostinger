@@ -1,0 +1,5 @@
+{
+  "name": "Meeting Copilot",
+  "description": "Record meetings, generate notes, action items, and analysis.",
+  "requestFramePermissions": ["microphone", "display-capture"]
+}

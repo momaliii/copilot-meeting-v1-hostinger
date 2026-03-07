@@ -1,0 +1,5 @@
+-- Add extended signup fields to users
+ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS where_know_us TEXT DEFAULT '';

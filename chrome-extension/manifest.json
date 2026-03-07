@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Meeting Copilot",
+  "version": "1.4",
+  "description": "Quickly launch Meeting Copilot to record your Google Meet, Zoom, and Teams sessions.",
+  "icons": {
+    "128": "icon.png"
+  },
+  "permissions": ["storage", "contextMenus", "tabs"],
+  "host_permissions": ["http://localhost:3000/*", "https://*.run.app/*"],
+  "options_ui": {
+    "page": "options.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "open-copilot": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+M",
+        "mac": "Command+Shift+M"
+      },
+      "description": "Open Meeting Copilot"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://meet.google.com/*",
+        "https://app.zoom.us/wc/*",
+        "https://teams.microsoft.com/*"
+      ],
+      "js": ["shared.js", "content.js"]
+    },
+    {
+      "matches": [
+        "http://localhost:3000/*",
+        "https://*.run.app/*"
+      ],
+      "js": ["content-app.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

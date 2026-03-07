@@ -1,0 +1,27 @@
+# Dependencies - Cloud Build will run npm install
+node_modules/
+
+# Build artifacts
+dist/
+build/
+coverage/
+
+# Environment and secrets - NEVER deploy these
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# IDE and OS
+.DS_Store
+*.log
+
+# Uploads (ephemeral, use Cloud Storage in production)
+uploads/
+
+# Documentation (optional - exclude to reduce upload size)
+*.md
+!SUPABASE_SETUP.md
