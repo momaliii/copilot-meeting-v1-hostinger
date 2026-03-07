@@ -73,10 +73,14 @@ router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
 
-    const user = await db.queryOne('SELECT id, email, password as hash, name, role, status, plan_id, avatar_url, totp_enabled FROM users WHERE email = ?', [email]);
+    // Use only columns that exist in initial migration (001) so login works before later migrations run
+    const user = await db.queryOne(
+      'SELECT id, email, password as hash, name, role, status, plan_id FROM users WHERE email = ?',
+      [email]
+    );
 
     if (user) {
-      const hash = user.hash ?? user.password;
+      const hash = user.hash ?? (user as any).password;
       if (!hash) {
         console.error('[auth] User has no password hash:', user.id);
         return res.status(500).json({ error: 'Account configuration error. Please contact support.' });
@@ -96,9 +100,13 @@ router.post('/login', loginLimiter, async (req, res) => {
         if (user.status === 'banned') {
           return res.status(403).json({ error: 'Account is banned' });
         }
-        await db.run('UPDATE users SET force_logout_at = NULL WHERE id = ?', [user.id]);
+        // force_logout_at added in migration 002 - skip update if column missing
+        try {
+          await db.run('UPDATE users SET force_logout_at = NULL WHERE id = ?', [user.id]);
+        } catch (_) {}
 
-        if (user.totp_enabled) {
+        const totpEnabled = (user as any).totp_enabled === true || (user as any).totp_enabled === 1;
+        if (totpEnabled) {
           const tempToken = jwt.sign({ id: user.id, type: '2fa' }, JWT_SECRET, { expiresIn: '5m' });
           const { hash, totp_enabled, ...userWithoutSensitive } = user;
           return res.json({
@@ -271,7 +279,8 @@ router.get('/me', async (req, res) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const user = await db.queryOne('SELECT id, email, name, role, status, plan_id, avatar_url FROM users WHERE id = ?', [decoded.id]);
+    // Base columns only so /me works before optional migrations (e.g. avatar_url)
+    const user = await db.queryOne('SELECT id, email, name, role, status, plan_id FROM users WHERE id = ?', [decoded.id]);
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.status === 'banned') return res.status(403).json({ error: 'Account is banned' });
     const userWithFeatures = await enrichUserWithPlanFeatures(user);

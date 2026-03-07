@@ -47,7 +47,13 @@ Do **not** set `USE_SQLITE_FOR_DEV` (or leave it unset). Use Postgres only on Ho
 
 Use **Node 18** or **20**. In Hostinger, pick that in the Node.js version selector for the app.
 
-## 5. Check logs
+## 5. Database and admin user
+
+- On first start, the app runs all Postgres migrations (when `DATABASE_URL` is set), so the correct tables and columns are created.
+- If you see **"Server error"** on login: the app now uses only the base `users` columns so login works even if some migrations haven’t run. Ensure your Hostinger app has finished starting (and run `npm run build`) so the latest code is deployed.
+- The default admin user is created when there are no admins: **admin@meetingcopilot.app** / **Admin123**. Change this password after first login.
+
+## 6. Check logs
 
 In the Hostinger panel, open **Logs** or **Application logs** for this app. Look for:
 
@@ -57,3 +63,8 @@ In the Hostinger panel, open **Logs** or **Application logs** for this app. Look
 - **“EADDRINUSE”** → wrong PORT or another process using the port; use the port Hostinger assigns.
 
 After changing env vars or build/start commands, **redeploy** or **restart** the application.
+
+---
+
+**Login works locally but 500 on Hostinger?**  
+The server was likely querying columns (`avatar_url`, `totp_enabled`) that only exist after later migrations. The login and `/me` endpoints now use only the base columns from the first migration, so they work even before all migrations are applied. Redeploy the latest code and try again.
