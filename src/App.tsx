@@ -2811,7 +2811,7 @@ export default function App() {
                       )}
                     </button>
                     <button
-                      onClick={saveWithoutAnalyzing}
+                      onClick={() => saveWithoutAnalyzing()}
                       className="w-full flex items-center justify-center gap-2 text-slate-600 hover:text-slate-800 hover:bg-slate-50 px-6 py-3 rounded-xl font-medium transition-all border border-slate-200"
                     >
                       {t('recording.saveWithoutAnalyzing')}

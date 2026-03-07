@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { AdminPermissions } from './types/admin';
 
-type User = {
+export type User = {
   id: string;
   email: string;
   name?: string;
@@ -8,16 +9,11 @@ type User = {
   status: 'active' | 'banned';
   plan_id: string;
   avatar_url?: string;
-};
-
-type AdminPermissions = {
-  viewUsers: boolean;
-  manageUsers: boolean;
-  manageRoles: boolean;
-  managePlans: boolean;
-  moderateFeedback: boolean;
-  viewAnalytics: boolean;
-  viewAuditLogs: boolean;
+  plan_features?: {
+    cloud_save?: boolean;
+    pro_analysis_enabled?: boolean;
+    video_caption?: boolean;
+  };
 };
 
 export type AdminViewMode = 'admin' | 'user';

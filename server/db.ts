@@ -25,10 +25,10 @@ export function isPostgres(): boolean {
 
 export async function initDb(): Promise<void> {
   if (USE_SQLITE) {
-    let Database: typeof import('better-sqlite3').default;
+    let Database: new (path: string) => SqliteDatabase;
     try {
       const mod = await import('better-sqlite3');
-      Database = mod.default;
+      Database = (mod as { default: new (path: string) => SqliteDatabase }).default;
     } catch (e) {
       throw new Error(
         'better-sqlite3 is required for SQLite mode but failed to load (often due to GLIBC on hosting). ' +

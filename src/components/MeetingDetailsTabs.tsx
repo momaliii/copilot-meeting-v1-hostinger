@@ -654,7 +654,7 @@ export default function MeetingDetailsTabs({
                 </div>
                 {transcriptStats.wordCount > 0 && (
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-slate-500">
-                    <span>{t('meeting.transcriptWords', { count: transcriptStats.wordCount.toLocaleString() })}</span>
+                    <span>{t('meeting.transcriptWords', { count: transcriptStats.wordCount })}</span>
                     <span>{t('meeting.transcriptReadingTime', { minutes: transcriptStats.readingTimeMins })}</span>
                     {transcriptStats.speakerDistribution.length > 0 && (
                       <span className="flex flex-wrap items-center gap-x-1 gap-y-0">
