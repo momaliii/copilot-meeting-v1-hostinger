@@ -242,6 +242,14 @@ async function startServer() {
     });
   }
 
+  // Central error handler so API always returns JSON (avoids HTML error pages)
+  app.use((err: any, _req: express.Request, res: express.Response, _next: () => void) => {
+    if (!res.headersSent) {
+      console.error('[server] Error:', err);
+      res.status(500).json({ error: 'Server error. Please try again.' });
+    }
+  });
+
   // Catch-all for unmatched API routes
   app.all('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });

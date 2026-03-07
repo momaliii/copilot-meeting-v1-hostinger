@@ -45,21 +45,28 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required').max(100),
 });
 
+const defaultPlanFeatures = { video_caption: false, cloud_save: false, pro_analysis_enabled: false };
+
 async function enrichUserWithPlanFeatures(user: any): Promise<any> {
   if (!user) return user;
   if (user.role === 'admin') {
     return { ...user, plan_features: { video_caption: true, cloud_save: true, pro_analysis_enabled: true } };
   }
-  if (!user.plan_id) return { ...user, plan_features: { video_caption: false, cloud_save: false, pro_analysis_enabled: false } };
-  const plan = await db.queryOne('SELECT video_caption, cloud_save, pro_analysis_enabled FROM plans WHERE id = ?', [user.plan_id]);
-  const plan_features = plan
-    ? {
-        video_caption: !!(plan.video_caption === true || plan.video_caption === 1),
-        cloud_save: !!(plan.cloud_save === true || plan.cloud_save === 1),
-        pro_analysis_enabled: !!(plan.pro_analysis_enabled === true || plan.pro_analysis_enabled === 1),
-      }
-    : { video_caption: false, cloud_save: false, pro_analysis_enabled: false };
-  return { ...user, plan_features };
+  if (!user.plan_id) return { ...user, plan_features: defaultPlanFeatures };
+  try {
+    const plan = await db.queryOne('SELECT video_caption, cloud_save, pro_analysis_enabled FROM plans WHERE id = ?', [user.plan_id]);
+    const plan_features = plan
+      ? {
+          video_caption: !!(plan.video_caption === true || plan.video_caption === 1),
+          cloud_save: !!(plan.cloud_save === true || plan.cloud_save === 1),
+          pro_analysis_enabled: !!(plan.pro_analysis_enabled === true || plan.pro_analysis_enabled === 1),
+        }
+      : defaultPlanFeatures;
+    return { ...user, plan_features };
+  } catch (e) {
+    console.error('[auth] enrichUserWithPlanFeatures failed (migrations may be missing):', e);
+    return { ...user, plan_features: defaultPlanFeatures };
+  }
 }
 
 router.post('/login', loginLimiter, async (req, res) => {
@@ -69,11 +76,16 @@ router.post('/login', loginLimiter, async (req, res) => {
     const user = await db.queryOne('SELECT id, email, password as hash, name, role, status, plan_id, avatar_url, totp_enabled FROM users WHERE email = ?', [email]);
 
     if (user) {
+      const hash = user.hash ?? user.password;
+      if (!hash) {
+        console.error('[auth] User has no password hash:', user.id);
+        return res.status(500).json({ error: 'Account configuration error. Please contact support.' });
+      }
       let isMatch = false;
-      if (user.hash.startsWith('$2b$')) {
-        isMatch = await bcrypt.compare(password, user.hash);
+      if (String(hash).startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(password, hash);
       } else {
-        isMatch = password === user.hash;
+        isMatch = password === hash;
         if (isMatch) {
           const newHash = await bcrypt.hash(password, 10);
           await db.run('UPDATE users SET password = ? WHERE id = ?', [newHash, user.id]);
@@ -112,7 +124,8 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ error: err.issues[0].message });
     }
-    res.status(500).json({ error: 'Server error' });
+    console.error('[auth] POST /login error:', err);
+    return res.status(500).json({ error: 'Server error. Please try again.' });
   }
 });
 
