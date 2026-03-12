@@ -117,7 +117,13 @@ async function startServer() {
   const largePayloadJson = express.json({ limit: '20mb' });
 
   // Initialize database (Postgres or SQLite)
-  await initDb();
+  try {
+    await initDb();
+    console.log('[server] Database initialized successfully');
+  } catch (err) {
+    console.error('[server] FATAL: Database initialization failed:', err);
+    process.exit(1);
+  }
 
   // Load blocked IPs from DB and activate security guard
   await loadBlockedIPs();
@@ -282,21 +288,10 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    app.use(express.static('dist'));
-    
-    // SPA fallback — skip /api/* so unmatched API calls get a proper 404
-    app.get(/^(?!\/api\/).*/, (req, res) => {
-      res.sendFile('index.html', { root: 'dist' });
-    });
-  }
+  // Catch-all for unmatched API routes (must be before SPA fallback)
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ error: 'API endpoint not found' });
+  });
 
   // Central error handler so API always returns JSON (avoids HTML error pages)
   app.use((err: any, _req: express.Request, res: express.Response, _next: () => void) => {
@@ -306,10 +301,19 @@ async function startServer() {
     }
   });
 
-  // Catch-all for unmatched API routes
-  app.all('/api/*', (req, res) => {
-    res.status(404).json({ error: 'API endpoint not found' });
-  });
+  // Vite middleware for development, static files + SPA fallback for production
+  if (process.env.NODE_ENV !== 'production') {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static('dist'));
+    app.get('*', (req, res) => {
+      res.sendFile('index.html', { root: 'dist' });
+    });
+  }
 
   createTranscribeWebSocketServer(server);
 
@@ -366,4 +370,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('[server] FATAL: Failed to start server:', err);
+  process.exit(1);
+});

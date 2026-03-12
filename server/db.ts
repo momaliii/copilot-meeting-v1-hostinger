@@ -47,7 +47,9 @@ export async function initDb(): Promise<void> {
 
   pgPool = new pg.Pool({
     connectionString: DATABASE_URL,
-    ssl: DATABASE_URL.includes('supabase') ? { rejectUnauthorized: process.env.NODE_ENV === 'production' } : undefined,
+    ssl: DATABASE_URL.includes('supabase') || DATABASE_URL.includes('pooler')
+      ? { rejectUnauthorized: false }
+      : undefined,
   });
 
   await runPostgresSchema();
