@@ -1,15 +1,13 @@
 import { Router } from 'express';
 import { existsSync, mkdirSync } from 'fs';
-import { join, dirname, resolve } from 'path';
-import { fileURLToPath } from 'url';
+import { join, resolve } from 'path';
 import db from '../db.ts';
 import { authenticateToken } from '../middleware/auth.ts';
 import { z } from 'zod';
 import crypto from 'crypto';
 import multer from 'multer';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const recordingsDir = join(__dirname, '../../uploads/recordings');
+const recordingsDir = join(process.cwd(), 'uploads/recordings');
 if (!existsSync(recordingsDir)) mkdirSync(recordingsDir, { recursive: true });
 
 const SAFE_ID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -145,7 +143,7 @@ router.get('/:id/media', authenticateToken, async (req: any, res) => {
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     const mediaPath = meeting.media_path;
     if (!mediaPath) return res.status(404).json({ error: 'No media for this meeting' });
-    const fullPath = resolve(join(__dirname, '../../uploads', mediaPath));
+    const fullPath = resolve(join(process.cwd(), 'uploads', mediaPath));
     if (!existsSync(fullPath)) return res.status(404).json({ error: 'Media file not found' });
     res.setHeader('Content-Type', 'video/webm');
     res.sendFile(fullPath);

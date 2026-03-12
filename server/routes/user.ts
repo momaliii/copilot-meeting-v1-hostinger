@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { existsSync, mkdirSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import db, { USAGE_TABLE, sqlCurrentMonth, sqlDateFilter, sqlDateColumn, isPostgres } from '../db.ts';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
@@ -12,9 +11,8 @@ import { sendVerificationEmail } from '../email.ts';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const uploadsDir = join(__dirname, '../../uploads/support');
-const avatarsDir = join(__dirname, '../../uploads/avatars');
+const uploadsDir = join(process.cwd(), 'uploads/support');
+const avatarsDir = join(process.cwd(), 'uploads/avatars');
 if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true });
 if (!existsSync(avatarsDir)) mkdirSync(avatarsDir, { recursive: true });
 

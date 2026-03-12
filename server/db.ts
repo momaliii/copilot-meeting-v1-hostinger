@@ -424,8 +424,11 @@ function runSqliteSchema(): void {
 async function runPostgresSchema(): Promise<void> {
   if (!pgPool) return;
   const migrations = ['001_initial_postgres.sql', '002_phase2.sql', '003_support_chat.sql', '004_support_attachments.sql', '005_support_admin.sql', '006_language_changes_limit.sql', '007_announcements_enhancements.sql', '008_support_notes_tags.sql', '009_avatar.sql', '010_email_verification.sql', '011_twofa.sql', '012_announcement_show_on.sql', '013_redirect_rules.sql', '014_signup_fields.sql', '015_promo_codes.sql', '016_contact_submissions.sql', '017_promo_per_user.sql', '018_session_replay.sql', '019_pro_video_plan.sql', '020_plan_features_and_model.sql', '021_transcript_model.sql', '022_tour_events.sql', '023_meetings_media.sql', '024_security_tables.sql'];
+  const migrationsDir = existsSync(join(__dirname, 'migrations'))
+    ? join(__dirname, 'migrations')
+    : join(process.cwd(), 'server', 'migrations');
   for (const name of migrations) {
-    const migrationPath = join(__dirname, 'migrations', name);
+    const migrationPath = join(migrationsDir, name);
     if (!existsSync(migrationPath)) continue;
     const sql = readFileSync(migrationPath, 'utf-8');
     const client = await pgPool.connect();
