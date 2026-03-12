@@ -149,6 +149,15 @@ async function startServer() {
     next();
   }, translateRoutes);
 
+  app.get('/api/health', async (_req, res) => {
+    try {
+      await db.queryOne('SELECT 1 as ok');
+      res.json({ status: 'ok', db: 'connected', node: process.version, env: process.env.NODE_ENV || 'development' });
+    } catch (err: any) {
+      res.status(500).json({ status: 'error', db: 'disconnected', error: err.message });
+    }
+  });
+
   app.get('/api/transcribe/available', (_req, res) => {
     res.json({ available: isTranscribeAvailable() });
   });

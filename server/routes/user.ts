@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import db, { USAGE_TABLE, sqlCurrentMonth, sqlDateFilter, sqlDateColumn, isPostgres } from '../db.ts';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import { z } from 'zod';
 import crypto from 'crypto';

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import db from '../db.ts';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { JWT_SECRET } from '../middleware/auth.ts';

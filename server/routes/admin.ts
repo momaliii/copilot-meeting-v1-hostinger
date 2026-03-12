@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import os from 'os';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import db, { USAGE_TABLE, sqlCurrentMonth, sqlDateFilter, sqlDateColumn, isPostgres } from '../db.ts';
 import { GoogleGenAI, Type } from '@google/genai';
 import { z } from 'zod';
