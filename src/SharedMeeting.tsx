@@ -6,7 +6,7 @@ import MeetingDetailsTabs, { type TabId } from './components/MeetingDetailsTabs'
 
 export default function SharedMeeting({ token }: { token: string }) {
   const { t, i18n } = useTranslation();
-  const [meeting, setMeeting] = useState<any>(null);
+  const [meeting, setMeeting] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('summary');
@@ -28,9 +28,10 @@ export default function SharedMeeting({ token }: { token: string }) {
   }, [i18n]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchMeeting = async () => {
       try {
-        const res = await fetch(`/api/public/share/${token}`);
+        const res = await fetch(`/api/public/share/${token}`, { signal: controller.signal });
         if (!res.ok) {
           throw new Error('Meeting not found or access denied');
         }
@@ -47,12 +48,13 @@ export default function SharedMeeting({ token }: { token: string }) {
         }
         setMeeting(data);
       } catch (err: any) {
-        setError(err.message);
+        if (err.name !== 'AbortError') setError(err.message);
       } finally {
         setLoading(false);
       }
     };
     fetchMeeting();
+    return () => controller.abort();
   }, [token]);
 
   if (loading) {

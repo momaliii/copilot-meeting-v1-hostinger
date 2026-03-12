@@ -1,7 +1,10 @@
 import jwt from 'jsonwebtoken';
 import db from '../db.ts';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-jwt-signing';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Set it in your .env file.');
+}
 
 export const authenticateToken = async (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;

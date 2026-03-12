@@ -49,4 +49,4 @@ export type AdminPermissions = {
   viewSessionReplay: boolean;
 };
 
-export type AdminPage = 'dashboard' | 'plans' | 'users' | 'feedback' | 'audit' | 'announcements' | 'support' | 'redirects' | 'promos' | 'contacts' | 'sessions' | 'heatmaps' | 'tour';
+export type AdminPage = 'dashboard' | 'plans' | 'users' | 'feedback' | 'audit' | 'announcements' | 'support' | 'redirects' | 'promos' | 'contacts' | 'sessions' | 'heatmaps' | 'tour' | 'security' | 'status';

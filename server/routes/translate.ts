@@ -16,7 +16,7 @@ function toSerializable(obj: any): any {
 
 router.post('/', async (req: any, res) => {
   try {
-    const { analysis, targetLanguage, translationCount } = req.body;
+    const { analysis, targetLanguage, meetingId } = req.body;
     if (!analysis || typeof analysis !== 'object') {
       return res.status(400).json({ error: 'Analysis object required' });
     }
@@ -30,8 +30,15 @@ router.post('/', async (req: any, res) => {
     const userRow = await db.queryOne('SELECT plan_id, role FROM users WHERE id = ?', [req.user.id]);
     const plan = userRow ? await db.queryOne('SELECT language_changes_limit FROM plans WHERE id = ?', [userRow.plan_id]) : null;
     const limit = userRow?.role === 'admin' ? -1 : (plan?.language_changes_limit != null ? Number(plan.language_changes_limit) : -1);
-    if (limit !== -1 && typeof translationCount === 'number' && translationCount >= limit) {
-      return res.status(403).json({ error: 'Language change limit reached for this meeting. Upgrade to Pro for unlimited.' });
+    if (limit !== -1 && meetingId) {
+      const usageRow = await db.queryOne(
+        'SELECT COUNT(*) as count FROM meeting_usage WHERE user_id = ? AND meeting_id = ?',
+        [req.user.id, meetingId]
+      );
+      const serverCount = Number(usageRow?.count ?? 0);
+      if (serverCount >= limit) {
+        return res.status(403).json({ error: 'Language change limit reached for this meeting. Upgrade to Pro for unlimited.' });
+      }
     }
 
     const apiKey = process.env.GEMINI_API_KEY;

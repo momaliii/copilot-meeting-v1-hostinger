@@ -407,9 +407,10 @@ router.put('/password', async (req: any, res) => {
 
     const userRow = await db.queryOne('SELECT password as hash FROM users WHERE id = ?', [user.id]);
     if (!userRow) return res.status(404).json({ error: 'User not found' });
+    if (!userRow.hash) return res.status(400).json({ error: 'Account configuration error. Please contact support.' });
 
     let isMatch = false;
-    if (userRow.hash.startsWith('$2b$')) {
+    if (String(userRow.hash).startsWith('$2b$')) {
       isMatch = await bcrypt.compare(currentPassword, userRow.hash);
     } else {
       isMatch = currentPassword === userRow.hash;
@@ -451,9 +452,10 @@ router.post('/email/request', async (req: any, res) => {
 
     const userRow = await db.queryOne('SELECT password as hash FROM users WHERE id = ?', [user.id]);
     if (!userRow) return res.status(404).json({ error: 'User not found' });
+    if (!userRow.hash) return res.status(400).json({ error: 'Account configuration error. Please contact support.' });
 
     let isMatch = false;
-    if (userRow.hash.startsWith('$2b$')) {
+    if (String(userRow.hash).startsWith('$2b$')) {
       isMatch = await bcrypt.compare(currentPassword, userRow.hash);
     } else {
       isMatch = currentPassword === userRow.hash;
@@ -567,9 +569,10 @@ router.post('/2fa/disable', async (req: any, res) => {
 
     const userRow = await db.queryOne('SELECT password as hash FROM users WHERE id = ?', [user.id]);
     if (!userRow) return res.status(404).json({ error: 'User not found' });
+    if (!userRow.hash) return res.status(400).json({ error: 'Account configuration error. Please contact support.' });
 
     let isMatch = false;
-    if (userRow.hash.startsWith('$2b$')) {
+    if (String(userRow.hash).startsWith('$2b$')) {
       isMatch = await bcrypt.compare(password, userRow.hash);
     } else {
       isMatch = password === userRow.hash;
@@ -600,9 +603,10 @@ router.delete('/account', async (req: any, res) => {
 
     const userRow = await db.queryOne('SELECT password as hash FROM users WHERE id = ?', [user.id]);
     if (!userRow) return res.status(404).json({ error: 'User not found' });
+    if (!userRow.hash) return res.status(400).json({ error: 'Account configuration error. Please contact support.' });
 
     let isMatch = false;
-    if (userRow.hash.startsWith('$2b$')) {
+    if (String(userRow.hash).startsWith('$2b$')) {
       isMatch = await bcrypt.compare(password, userRow.hash);
     } else {
       isMatch = password === userRow.hash;
@@ -690,10 +694,11 @@ router.get('/support/conversation', async (req: any, res) => {
       'SELECT id, sender_type, sender_id, content, attachments_json, created_at FROM support_messages WHERE conversation_id = ? ORDER BY created_at ASC',
       [conv.id]
     )).rows;
-    const messages = rows.map((r: any) => ({
-      ...r,
-      attachments: r.attachments_json ? JSON.parse(r.attachments_json) : [],
-    }));
+    const messages = rows.map((r: any) => {
+      let attachments: string[] = [];
+      try { attachments = r.attachments_json ? JSON.parse(r.attachments_json) : []; } catch (_) {}
+      return { ...r, attachments };
+    });
     res.json({ id: conv.id, messages });
   } catch (err) {
     console.error(err);

@@ -1,4 +1,5 @@
 import pg from 'pg';
+import crypto from 'crypto';
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -46,7 +47,7 @@ export async function initDb(): Promise<void> {
 
   pgPool = new pg.Pool({
     connectionString: DATABASE_URL,
-    ssl: DATABASE_URL.includes('supabase') ? { rejectUnauthorized: false } : undefined,
+    ssl: DATABASE_URL.includes('supabase') ? { rejectUnauthorized: process.env.NODE_ENV === 'production' } : undefined,
   });
 
   await runPostgresSchema();
@@ -348,6 +349,42 @@ function runSqliteSchema(): void {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_tour_events_user_created ON tour_events(user_id, created_at)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_tour_events_type ON tour_events(event_type)`);
   } catch (_) {}
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS security_events (
+        id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        ip_address TEXT,
+        user_id TEXT,
+        path TEXT,
+        details TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events(event_type)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_security_events_ip ON security_events(ip_address)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at)`);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS blocked_ips (
+        ip TEXT PRIMARY KEY,
+        reason TEXT,
+        blocked_by TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS login_attempts (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        ip_address TEXT NOT NULL,
+        success INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_login_attempts_created ON login_attempts(created_at)`);
+  } catch (_) {}
 
   const planCount = db.prepare('SELECT COUNT(*) as count FROM plans').get() as { count: number };
   if (planCount.count === 0) {
@@ -372,14 +409,19 @@ function runSqliteSchema(): void {
 
   const adminCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number };
   if (adminCount.count === 0) {
-    const hash = bcrypt.hashSync('Admin123', 10);
+    const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || crypto.randomUUID().slice(0, 16);
+    const hash = bcrypt.hashSync(adminPassword, 10);
     db.prepare('INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)').run('admin-1', 'admin@meetingcopilot.app', hash, '', 'admin');
+    if (!process.env.ADMIN_DEFAULT_PASSWORD) {
+      console.warn(`[SECURITY] Default admin account created. Email: admin@meetingcopilot.app Password: ${adminPassword}`);
+      console.warn('[SECURITY] Change this password immediately and set ADMIN_DEFAULT_PASSWORD env var for future deployments.');
+    }
   }
 }
 
 async function runPostgresSchema(): Promise<void> {
   if (!pgPool) return;
-  const migrations = ['001_initial_postgres.sql', '002_phase2.sql', '003_support_chat.sql', '004_support_attachments.sql', '005_support_admin.sql', '006_language_changes_limit.sql', '007_announcements_enhancements.sql', '008_support_notes_tags.sql', '009_avatar.sql', '010_email_verification.sql', '011_twofa.sql', '012_announcement_show_on.sql', '013_redirect_rules.sql', '014_signup_fields.sql', '015_promo_codes.sql', '016_contact_submissions.sql', '017_promo_per_user.sql', '018_session_replay.sql', '019_pro_video_plan.sql', '020_plan_features_and_model.sql', '021_transcript_model.sql', '022_tour_events.sql', '023_meetings_media.sql'];
+  const migrations = ['001_initial_postgres.sql', '002_phase2.sql', '003_support_chat.sql', '004_support_attachments.sql', '005_support_admin.sql', '006_language_changes_limit.sql', '007_announcements_enhancements.sql', '008_support_notes_tags.sql', '009_avatar.sql', '010_email_verification.sql', '011_twofa.sql', '012_announcement_show_on.sql', '013_redirect_rules.sql', '014_signup_fields.sql', '015_promo_codes.sql', '016_contact_submissions.sql', '017_promo_per_user.sql', '018_session_replay.sql', '019_pro_video_plan.sql', '020_plan_features_and_model.sql', '021_transcript_model.sql', '022_tour_events.sql', '023_meetings_media.sql', '024_security_tables.sql'];
   for (const name of migrations) {
     const migrationPath = join(__dirname, 'migrations', name);
     if (!existsSync(migrationPath)) continue;
@@ -415,11 +457,16 @@ async function runPostgresSchema(): Promise<void> {
 
   const adminResult = await pgPool.query("SELECT COUNT(*) as count FROM users WHERE role = 'admin'");
   if (parseInt(adminResult.rows[0]?.count || '0') === 0) {
-    const hash = await bcrypt.hash('Admin123', 10);
+    const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || crypto.randomUUID().slice(0, 16);
+    const hash = await bcrypt.hash(adminPassword, 10);
     await pgPool.query(
       `INSERT INTO users (id, email, password, name, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING`,
       ['admin-1', 'admin@meetingcopilot.app', hash, '', 'admin']
     );
+    if (!process.env.ADMIN_DEFAULT_PASSWORD) {
+      console.warn(`[SECURITY] Default admin account created. Email: admin@meetingcopilot.app Password: ${adminPassword}`);
+      console.warn('[SECURITY] Change this password immediately and set ADMIN_DEFAULT_PASSWORD env var for future deployments.');
+    }
   }
 }
 

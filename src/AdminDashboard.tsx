@@ -22,6 +22,9 @@ import AdminContactsView from './components/admin/AdminContactsView';
 import AdminSessionsView from './components/admin/AdminSessionsView';
 import AdminHeatmapView from './components/admin/AdminHeatmapView';
 import AdminTourView from './components/admin/AdminTourView';
+import AdminSecurityView from './components/admin/AdminSecurityView';
+import AdminStatusView from './components/admin/AdminStatusView';
+import type { SystemStatus } from './components/admin/AdminStatusView';
 import type { ContactSubmissionRow } from './components/admin/AdminContactsView';
 import AnnouncementBar from './components/AnnouncementBar';
 
@@ -41,6 +44,8 @@ const PATH_TO_PAGE: Record<string, AdminPage> = {
   '/admin/sessions': 'sessions',
   '/admin/heatmaps': 'heatmaps',
   '/admin/tour': 'tour',
+  '/admin/security': 'security',
+  '/admin/status': 'status',
 };
 const PAGE_TO_PATH: Record<AdminPage, string> = {
   dashboard: '/admin/dashboard',
@@ -56,6 +61,8 @@ const PAGE_TO_PATH: Record<AdminPage, string> = {
   sessions: '/admin/sessions',
   heatmaps: '/admin/heatmaps',
   tour: '/admin/tour',
+  security: '/admin/security',
+  status: '/admin/status',
 };
 
 const defaultPermissions: AdminPermissions = {
@@ -284,7 +291,20 @@ export default function AdminDashboard() {
   const [contactSearchQuery, setContactSearchQuery] = useState('');
   const contactSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [systemStatus, setSystemStatus] = useState<{ db: string; checks: { geminiConfigured: boolean; jwtConfigured: boolean } } | null>(null);
+  const [securityEvents, setSecurityEvents] = useState<any[]>([]);
+  const [securityStats, setSecurityStats] = useState<any>(null);
+  const [securityBlockedIPs, setSecurityBlockedIPs] = useState<any[]>([]);
+  const [securityPage, setSecurityPage] = useState(1);
+  const [securityTotal, setSecurityTotal] = useState(0);
+  const securityPageSize = 30;
+  const [securityTypeFilter, setSecurityTypeFilter] = useState('');
+  const [securityIPFilter, setSecurityIPFilter] = useState('');
+  const [securityFrom, setSecurityFrom] = useState('');
+  const [securityTo, setSecurityTo] = useState('');
+
+  const [fullSystemStatus, setFullSystemStatus] = useState<SystemStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusLastUpdated, setStatusLastUpdated] = useState<number | null>(null);
 
   const [analyticsDays, setAnalyticsDays] = useState(14);
 
@@ -451,12 +471,88 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadSecurityEvents = async (page = securityPage) => {
+    setLoading('securityEvents', true);
+    setError('securityEvents', null);
+    try {
+      const qs = new URLSearchParams({ page: String(page), pageSize: String(securityPageSize) });
+      if (securityTypeFilter) qs.set('type', securityTypeFilter);
+      if (securityIPFilter) qs.set('ip', securityIPFilter);
+      if (securityFrom) qs.set('fromDate', securityFrom);
+      if (securityTo) qs.set('toDate', securityTo);
+      const data = await apiRequest(`/api/admin/security/events?${qs.toString()}`, { headers });
+      setSecurityEvents(data.events || []);
+      setSecurityTotal(data.total || 0);
+    } catch (err: any) {
+      setError('securityEvents', err.message);
+    } finally {
+      setLoading('securityEvents', false);
+    }
+  };
+
+  const loadSecurityStats = async () => {
+    setLoading('securityStats', true);
+    try {
+      const data = await apiRequest('/api/admin/security/stats', { headers });
+      setSecurityStats(data);
+    } catch {
+      setSecurityStats(null);
+    } finally {
+      setLoading('securityStats', false);
+    }
+  };
+
+  const loadSecurityBlockedIPs = async () => {
+    setLoading('securityBlockedIPs', true);
+    try {
+      const data = await apiRequest('/api/admin/security/blocked-ips', { headers });
+      setSecurityBlockedIPs(data.blockedIPs || []);
+    } catch {
+      setSecurityBlockedIPs([]);
+    } finally {
+      setLoading('securityBlockedIPs', false);
+    }
+  };
+
+  const handleBlockIP = async (ip: string, reason: string) => {
+    await apiRequest('/api/admin/security/block-ip', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ip, reason }),
+    });
+    await loadSecurityBlockedIPs();
+    await loadSecurityStats();
+  };
+
+  const handleUnblockIP = async (ip: string) => {
+    await apiRequest(`/api/admin/security/block-ip/${encodeURIComponent(ip)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    await loadSecurityBlockedIPs();
+    await loadSecurityStats();
+  };
+
   const loadSystemStatus = async () => {
     try {
       const data = await apiRequest('/api/admin/status', { headers });
-      setSystemStatus(data);
+      setFullSystemStatus(data);
+      setStatusLastUpdated(Date.now());
     } catch {
-      setSystemStatus({ db: 'error', checks: { geminiConfigured: false, jwtConfigured: false } });
+      setFullSystemStatus(null);
+    }
+  };
+
+  const loadFullStatus = async () => {
+    setStatusLoading(true);
+    try {
+      const data = await apiRequest('/api/admin/status', { headers });
+      setFullSystemStatus(data);
+      setStatusLastUpdated(Date.now());
+    } catch {
+      // keep existing data on refresh failure
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -963,6 +1059,24 @@ export default function AdminDashboard() {
     loadAuditLogs(auditPage);
   }, [token, activePage, auditPage, auditActionFilter, auditAdminFilter, auditFrom, auditTo, currentPermissions.viewAuditLogs]);
 
+  useEffect(() => {
+    if (!token || !currentPermissions.viewAuditLogs || activePage !== 'security') return;
+    loadSecurityStats();
+    loadSecurityBlockedIPs();
+  }, [token, activePage, currentPermissions.viewAuditLogs]);
+
+  useEffect(() => {
+    if (!token || !currentPermissions.viewAuditLogs || activePage !== 'security') return;
+    loadSecurityEvents(securityPage);
+  }, [token, activePage, securityPage, securityTypeFilter, securityIPFilter, securityFrom, securityTo, currentPermissions.viewAuditLogs]);
+
+  useEffect(() => {
+    if (!token || !currentPermissions.viewAnalytics || activePage !== 'status') return;
+    loadFullStatus();
+    const interval = setInterval(loadFullStatus, 30000);
+    return () => clearInterval(interval);
+  }, [token, activePage, currentPermissions.viewAnalytics]);
+
   const refreshAdminData = () => {
     loadUsers();
     loadStats();
@@ -1436,6 +1550,10 @@ export default function AdminDashboard() {
       ? t('admin.heatmaps')
       : activePage === 'tour'
       ? t('admin.tourAnalytics')
+      : activePage === 'security'
+      ? t('admin.security')
+      : activePage === 'status'
+      ? t('admin.systemStatusPage', 'System Status')
       : t('common.admin');
 
   const sidebarVisible = isDesktop || isMobileMenuOpen;
@@ -1529,7 +1647,7 @@ export default function AdminDashboard() {
             stats={stats}
             analytics={analytics}
             sectionLoading={{ stats: sectionLoading.stats, analytics: sectionLoading.analytics }}
-            systemStatus={systemStatus}
+            systemStatus={fullSystemStatus ? { db: fullSystemStatus.db, checks: { geminiConfigured: fullSystemStatus.checks.geminiConfigured, jwtConfigured: fullSystemStatus.checks.jwtConfigured } } : null}
             formatCurrency={formatCurrency}
             analyticsDays={analyticsDays}
             setAnalyticsDays={setAnalyticsDays}
@@ -1777,6 +1895,43 @@ export default function AdminDashboard() {
 
         {activePage === 'tour' && currentPermissions.viewAnalytics && (
           <AdminTourView />
+        )}
+
+        {activePage === 'security' && currentPermissions.viewAuditLogs && (
+          <AdminSecurityView
+            stats={securityStats}
+            events={securityEvents}
+            blockedIPs={securityBlockedIPs}
+            eventsLoading={!!sectionLoading.securityEvents}
+            statsLoading={!!sectionLoading.securityStats}
+            blockedIPsLoading={!!sectionLoading.securityBlockedIPs}
+            eventsError={sectionError.securityEvents || null}
+            eventsPage={securityPage}
+            eventsTotal={securityTotal}
+            eventsPageSize={securityPageSize}
+            typeFilter={securityTypeFilter}
+            ipFilter={securityIPFilter}
+            fromDate={securityFrom}
+            toDate={securityTo}
+            canManage={currentPermissions.manageUsers}
+            onTypeFilterChange={(v) => { setSecurityTypeFilter(v); setSecurityPage(1); }}
+            onIPFilterChange={(v) => { setSecurityIPFilter(v); setSecurityPage(1); }}
+            onFromChange={(v) => { setSecurityFrom(v); setSecurityPage(1); }}
+            onToChange={(v) => { setSecurityTo(v); setSecurityPage(1); }}
+            onPageChange={setSecurityPage}
+            onBlockIP={handleBlockIP}
+            onUnblockIP={handleUnblockIP}
+          />
+        )}
+
+        {activePage === 'status' && currentPermissions.viewAnalytics && (
+          <AdminStatusView
+            status={fullSystemStatus}
+            loading={statusLoading}
+            lastUpdated={statusLastUpdated}
+            onRefresh={loadFullStatus}
+            onNavigate={navigateToPage}
+          />
         )}
 
         {activePage === 'contacts' && currentPermissions.manageSupport && (

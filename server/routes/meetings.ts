@@ -12,10 +12,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const recordingsDir = join(__dirname, '../../uploads/recordings');
 if (!existsSync(recordingsDir)) mkdirSync(recordingsDir, { recursive: true });
 
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]+$/;
+
 const mediaUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, recordingsDir),
-    filename: (req, _file, cb) => cb(null, `${req.params.id}.webm`),
+    filename: (req, _file, cb) => {
+      const id = req.params.id;
+      if (!SAFE_ID_RE.test(id)) return cb(new Error('Invalid meeting ID'), '');
+      cb(null, `${id}.webm`);
+    },
   }),
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
@@ -28,8 +34,9 @@ const mediaUpload = multer({
 const router = Router();
 
 async function assertProAndCloudSave(userId: string): Promise<void> {
-  const row = await db.queryOne('SELECT plan_id, cloud_save_enabled FROM users WHERE id = ?', [userId]);
+  const row = await db.queryOne('SELECT plan_id, cloud_save_enabled, role FROM users WHERE id = ?', [userId]);
   if (!row) throw new Error('User not found');
+  if (row.role === 'admin' && row.cloud_save_enabled) return;
   const plan = row.plan_id ? await db.queryOne('SELECT cloud_save FROM plans WHERE id = ?', [row.plan_id]) : null;
   const hasCloudSave = !!(plan?.cloud_save === true || plan?.cloud_save === 1);
   if (!hasCloudSave || !row.cloud_save_enabled) {
@@ -45,7 +52,8 @@ router.get('/list', authenticateToken, async (req: any, res) => {
       [req.user.id]
     );
     const meetings = rows.map((row: any) => {
-      const analysis = row.analysis_json ? JSON.parse(row.analysis_json) : null;
+      let analysis = null;
+      try { analysis = row.analysis_json ? JSON.parse(row.analysis_json) : null; } catch (_) {}
       return {
         id: row.id,
         title: row.title,
@@ -151,7 +159,8 @@ router.get('/:id', authenticateToken, async (req: any, res) => {
   try {
     const meeting = await db.queryOne('SELECT * FROM meetings WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
-    const analysis = meeting.analysis_json ? JSON.parse(meeting.analysis_json) : null;
+    let analysis = null;
+    try { analysis = meeting.analysis_json ? JSON.parse(meeting.analysis_json) : null; } catch (_) {}
     res.json({
       id: meeting.id,
       title: meeting.title,

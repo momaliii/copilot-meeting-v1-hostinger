@@ -73,13 +73,13 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">
+          <h2 id="auth-modal-title" className="text-lg font-semibold text-slate-800">
             {requires2FA ? t('profile.verifyAndSignIn') : isLogin ? t('auth.signIn') : t('auth.createAccount')}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -110,8 +110,9 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
             <>
           {!isLogin && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t('auth.name')}</label>
+              <label htmlFor="auth-name" className="block text-sm font-medium text-slate-700 mb-1">{t('auth.name')}</label>
               <input 
+                id="auth-name"
                 type="text" 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -122,8 +123,9 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t('auth.email')}</label>
+            <label htmlFor="auth-email" className="block text-sm font-medium text-slate-700 mb-1">{t('auth.email')}</label>
             <input 
+              id="auth-email"
               type="email" 
               required
               value={email}
@@ -134,8 +136,9 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t('auth.password')}</label>
+            <label htmlFor="auth-password" className="block text-sm font-medium text-slate-700 mb-1">{t('auth.password')}</label>
             <input 
+              id="auth-password"
               type="password" 
               required
               value={password}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, Clock, ChevronRight, Trash2, History, Plus, Search, X, CheckSquare, Activity, Edit2, Check, Cloud, CloudOff } from 'lucide-react';
+import { Mic, Clock, ChevronRight, Trash2, History, Plus, Search, X, CheckSquare, Activity, Edit2, Check, Cloud, CloudOff, RefreshCw, Upload } from 'lucide-react';
 import { formatDate } from '../utils/format';
 import type { Meeting } from '../types/meeting';
 
@@ -45,6 +45,8 @@ type MeetingHistoryViewProps = {
   onConfirmDelete: (id: string) => Promise<void>;
   onUpdateTitle: (id: string, newTitle: string) => Promise<void>;
   onRecordNew: () => void;
+  onSyncMeeting?: (id: string) => Promise<boolean>;
+  cloudSaveAvailable?: boolean;
 };
 
 export default function MeetingHistoryView({
@@ -54,6 +56,8 @@ export default function MeetingHistoryView({
   onConfirmDelete,
   onUpdateTitle,
   onRecordNew,
+  onSyncMeeting,
+  cloudSaveAvailable,
 }: MeetingHistoryViewProps) {
   const { t } = useTranslation();
   const [historySearch, setHistorySearch] = useState('');
@@ -63,6 +67,8 @@ export default function MeetingHistoryView({
   const [deleteMeetingId, setDeleteMeetingId] = useState<string | null>(null);
   const [editingMeetingId, setEditingMeetingId] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState('');
+  const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
+  const [syncAllInProgress, setSyncAllInProgress] = useState(false);
 
   const historyFiltered = useMemo(() => {
     let result = meetings;
@@ -115,6 +121,31 @@ export default function MeetingHistoryView({
     setEditTitleValue('');
   };
 
+  const unsyncedMeetings = useMemo(() => meetings.filter(m => !m.synced), [meetings]);
+
+  const handleSyncOne = async (e: React.MouseEvent, meetingId: string) => {
+    e.stopPropagation();
+    if (!onSyncMeeting || syncingIds.has(meetingId)) return;
+    setSyncingIds(prev => new Set(prev).add(meetingId));
+    try {
+      await onSyncMeeting(meetingId);
+    } finally {
+      setSyncingIds(prev => { const next = new Set(prev); next.delete(meetingId); return next; });
+    }
+  };
+
+  const handleSyncAll = async () => {
+    if (!onSyncMeeting || syncAllInProgress || unsyncedMeetings.length === 0) return;
+    setSyncAllInProgress(true);
+    const ids = unsyncedMeetings.map(m => m.id);
+    setSyncingIds(new Set(ids));
+    for (const id of ids) {
+      await onSyncMeeting(id);
+      setSyncingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+    }
+    setSyncAllInProgress(false);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
@@ -162,6 +193,18 @@ export default function MeetingHistoryView({
               <option value="oldest">{t('history.sortOldest')}</option>
               <option value="title">{t('history.sortTitle')}</option>
             </select>
+            {cloudSaveAvailable && unsyncedMeetings.length > 0 && (
+              <button
+                onClick={handleSyncAll}
+                disabled={syncAllInProgress}
+                className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                <Upload className={`w-4 h-4 ${syncAllInProgress ? 'animate-pulse' : ''}`} />
+                {syncAllInProgress
+                  ? t('history.syncing')
+                  : t('history.syncAll', { count: unsyncedMeetings.length })}
+              </button>
+            )}
             <button
               onClick={onRecordNew}
               className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -288,6 +331,17 @@ export default function MeetingHistoryView({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                    {cloudSaveAvailable && !meeting.synced && editingMeetingId !== meeting.id && (
+                      <button
+                        onClick={(e) => handleSyncOne(e, meeting.id)}
+                        disabled={syncingIds.has(meeting.id)}
+                        className="p-2 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg disabled:opacity-50"
+                        title={t('history.syncToCloud')}
+                        aria-label={t('history.syncToCloud')}
+                      >
+                        <RefreshCw className={`w-4 h-4 ${syncingIds.has(meeting.id) ? 'animate-spin' : ''}`} />
+                      </button>
+                    )}
                     {editingMeetingId !== meeting.id && (
                       <button
                         onClick={(e) => startEditTitle(e, meeting)}

@@ -1179,6 +1179,8 @@ export default function App() {
                   console.error('Failed to upload media to cloud', uploadErr);
                 }
               }
+            } else {
+              console.error('Cloud save failed', saveRes.status);
             }
           }
         } catch (err) {
@@ -1188,6 +1190,52 @@ export default function App() {
     } catch (err) {
       console.error('Failed to save meeting to DB', err);
       setError('Failed to save meeting history. Your browser may be out of storage space.');
+    }
+  };
+
+  const syncMeetingToCloud = async (meetingId: string): Promise<boolean> => {
+    const meeting = meetings.find(m => m.id === meetingId);
+    if (!meeting || meeting.synced) return false;
+    if (!user || (!user.plan_features?.cloud_save && user.role !== 'admin') || !cloudSaveEnabled) return false;
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    try {
+      const saveRes = await fetch('/api/meetings/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          id: meeting.id,
+          title: meeting.title,
+          date: meeting.date,
+          durationSeconds: 0,
+          transcript: meeting.analysis.transcript,
+          analysis: meeting.analysis,
+        }),
+      });
+      if (!saveRes.ok) return false;
+      const synced = { ...meeting, synced: true };
+      setMeetings(prev => prev.map(m => m.id === meetingId ? synced : m));
+      saveMeetingToDB(synced).catch(() => {});
+      const mediaBlob = meeting.audioBlob || meeting.videoBlob;
+      if (storeAudio && mediaBlob) {
+        try {
+          const fd = new FormData();
+          fd.append('media', mediaBlob, 'recording.webm');
+          const uploadRes = await fetch(`/api/meetings/${meeting.id}/upload-media`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: fd,
+          });
+          if (uploadRes.ok) {
+            const withMedia = { ...synced, mediaUrl: `/api/meetings/${meeting.id}/media` };
+            setMeetings(prev => prev.map(m => m.id === meetingId ? withMedia : m));
+            saveMeetingToDB(withMedia).catch(() => {});
+          }
+        } catch {}
+      }
+      return true;
+    } catch {
+      return false;
     }
   };
 
@@ -2488,6 +2536,8 @@ export default function App() {
               onConfirmDelete={performDeleteMeeting}
               onUpdateTitle={updateMeetingTitle}
               onRecordNew={startNewMeeting}
+              onSyncMeeting={syncMeetingToCloud}
+              cloudSaveAvailable={!!((user?.plan_features?.cloud_save || user?.role === 'admin') && cloudSaveEnabled)}
             />
           )}
 
@@ -3104,9 +3154,9 @@ export default function App() {
                           name="cloudSave"
                           id="cloudSave"
                           checked={cloudSaveEnabled}
-                          disabled={user?.plan_id !== 'pro' && user?.role !== 'admin'}
+                          disabled={!user?.plan_features?.cloud_save && user?.role !== 'admin'}
                           onChange={async (e) => {
-                            if (user?.plan_id !== 'pro' && user?.role !== 'admin') return;
+                            if (!user?.plan_features?.cloud_save && user?.role !== 'admin') return;
                             const enabled = e.target.checked;
                             try {
                               const token = localStorage.getItem('token');

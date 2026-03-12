@@ -14,24 +14,28 @@ export default function PricingSection({ onGetStarted, onSelectPlan }: PricingSe
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchPlans = async () => {
       try {
         setError(false);
-        const res = await fetch('/api/public/plans');
+        const res = await fetch('/api/public/plans', { signal: controller.signal });
         if (res.ok) {
           const data = await res.json();
           setPlans(Array.isArray(data) ? data : []);
         } else {
           setError(true);
         }
-      } catch (err) {
-        console.error('Failed to fetch plans', err);
-        setError(true);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to fetch plans', err);
+          setError(true);
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchPlans();
+    return () => controller.abort();
   }, []);
 
   const containerVariants = {

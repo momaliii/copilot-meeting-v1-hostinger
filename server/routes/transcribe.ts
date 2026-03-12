@@ -5,6 +5,7 @@
  */
 import { WebSocketServer } from 'ws';
 import { DeepgramClient } from '@deepgram/sdk';
+import jwt from 'jsonwebtoken';
 import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
 
@@ -19,9 +20,26 @@ export function createTranscribeWebSocketServer(server: import('http').Server): 
 
   const wss = new WebSocketServer({ noServer: true });
 
+  const JWT_SECRET = process.env.JWT_SECRET;
+
   server.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = new URL(request.url || '', `http://${request.headers.host}`);
     if (url.pathname !== '/api/transcribe/stream') return;
+
+    const token = url.searchParams.get('token');
+    if (!token || !JWT_SECRET) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    try {
+      jwt.verify(token, JWT_SECRET);
+    } catch {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request);
     });

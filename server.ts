@@ -5,6 +5,7 @@ import { Server as SocketServer } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { createServer as createViteServer } from 'vite';
 import cors from 'cors';
+import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { initDb } from './server/db.ts';
 import db from './server/db.ts';
@@ -17,18 +18,37 @@ import analyzeRoutes from './server/routes/analyze.ts';
 import translateRoutes from './server/routes/translate.ts';
 import { isTranscribeAvailable, createTranscribeWebSocketServer } from './server/routes/transcribe.ts';
 import { JWT_SECRET } from './server/middleware/auth.ts';
+import { securityGuard, loadBlockedIPs, startSecurityCleanup } from './server/middleware/security.ts';
 
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || '3000', 10);
   const server = http.createServer(app);
 
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  app.use(helmet({
+    contentSecurityPolicy: isDev ? false : {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'", 'wss:', 'https://generativelanguage.googleapis.com'],
+        mediaSrc: ["'self'", 'blob:'],
+        workerSrc: ["'self'", 'blob:'],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }));
+
   const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  const isDev = process.env.NODE_ENV !== 'production';
   app.use(cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
@@ -60,22 +80,57 @@ async function startServer() {
     legacyHeaders: false,
     message: { error: 'Too many write operations, please try again later.' },
   });
-  app.use(['/api/admin', '/api/user'], (req, res, next) => {
+  app.use(['/api/admin', '/api/user', '/api/meetings', '/api/sessions'], (req, res, next) => {
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
     return mutationLimiter(req, res, next);
   });
 
-  app.use(express.json({ limit: '50mb' }));
-  app.use('/uploads', express.static('uploads'));
+  const aiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many AI requests, please try again later.' },
+  });
+  app.use(['/api/analyze', '/api/translate'], aiLimiter);
+
+  const contactLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many contact submissions, please try again later.' },
+  });
+
+  const verify2faLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many verification attempts, please try again later.' },
+  });
+
+  app.use(express.json({ limit: '1mb' }));
+  app.use('/uploads/avatars', express.static('uploads/avatars'));
+  app.use('/uploads/support', express.static('uploads/support'));
+
+  const largePayloadJson = express.json({ limit: '20mb' });
 
   // Initialize database (Postgres or SQLite)
   await initDb();
 
+  // Load blocked IPs from DB and activate security guard
+  await loadBlockedIPs();
+  app.use('/api', securityGuard);
+  startSecurityCleanup();
+
   // API Routes
+  app.use('/api/auth/verify-2fa', verify2faLimiter);
+  app.use('/api/auth/confirm-email', verify2faLimiter);
   app.use('/api/auth', authRoutes);
   app.use('/api/admin', adminRoutes);
-  app.use('/api/meetings', meetingsRoutes);
-  app.use('/api/sessions', sessionsRoutes);
+  app.use('/api/meetings', largePayloadJson, meetingsRoutes);
+  app.use('/api/sessions', largePayloadJson, sessionsRoutes);
   app.use('/api/user', userRoutes);
   app.use('/api/analyze', (req, res, next) => {
     req.setTimeout(900000); // 15 minutes for large audio analysis
@@ -167,7 +222,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/public/contact', async (req, res) => {
+  app.post('/api/public/contact', contactLimiter, async (req, res) => {
     try {
       const raw = req.body || {};
       const name = typeof raw.name === 'string' ? raw.name.trim() : '';
@@ -211,7 +266,8 @@ async function startServer() {
       if (!share) return res.status(404).json({ error: 'Share link not found or expired' });
       const meeting = await db.queryOne('SELECT * FROM meetings WHERE id = ?', [share.meeting_id]);
       if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
-      const analysis = meeting.analysis_json ? JSON.parse(meeting.analysis_json) : null;
+      let analysis = null;
+      try { analysis = meeting.analysis_json ? JSON.parse(meeting.analysis_json) : null; } catch (_) {}
       res.json({
         id: meeting.id,
         title: meeting.title,

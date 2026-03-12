@@ -16,6 +16,8 @@ import {
   PlayCircle,
   Flame,
   Compass,
+  Shield,
+  Monitor,
 } from 'lucide-react';
 import type { AdminPage, AdminPermissions } from '../../types/admin';
 import type { TFunction } from 'i18next';
@@ -76,6 +78,12 @@ export default function AdminSidebar({
           <LayoutDashboard className="w-4 h-4" />
           <span className={hiddenWhenCollapsed}>{t('admin.dashboard')}</span>
         </button>
+        {permissions.viewAnalytics && (
+          <button onClick={() => onNavigate('status')} className={navItemClass('status')} title={t('admin.systemStatusPage', 'System Status')}>
+            <Monitor className="w-4 h-4" />
+            <span className={hiddenWhenCollapsed}>{t('admin.systemStatusPage', 'System Status')}</span>
+          </button>
+        )}
         <button onClick={() => onNavigate('plans')} className={navItemClass('plans')} title={t('admin.managePlans')}>
           <CreditCard className="w-4 h-4" />
           <span className={hiddenWhenCollapsed}>{t('admin.managePlans')}</span>
@@ -102,6 +110,12 @@ export default function AdminSidebar({
           <button onClick={() => onNavigate('audit')} className={navItemClass('audit')} title={t('admin.auditLogs')}>
             <ScrollText className="w-4 h-4" />
             <span className={hiddenWhenCollapsed}>{t('admin.auditLogs')}</span>
+          </button>
+        )}
+        {permissions.viewAuditLogs && (
+          <button onClick={() => onNavigate('security')} className={navItemClass('security')} title={t('admin.security')}>
+            <Shield className="w-4 h-4" />
+            <span className={hiddenWhenCollapsed}>{t('admin.security')}</span>
           </button>
         )}
         {permissions.manageUsers && (

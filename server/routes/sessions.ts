@@ -71,7 +71,7 @@ router.post('/events', authenticateToken, async (req: any, res) => {
     } catch (_) {}
     const today = new Date().toISOString().slice(0, 10);
     for (const p of points) {
-      const existingH = await db.queryOne('SELECT id, count FROM heatmap_data WHERE page_path = ? AND x = ? AND y = ? AND type = ? AND date = ?', [pagePath, p.x, p.y, p.type, today]);
+      const existingH = await db.queryOne('SELECT id FROM heatmap_data WHERE page_path = ? AND x = ? AND y = ? AND type = ? AND date = ?', [pagePath, p.x, p.y, p.type, today]);
       if (existingH) {
         await db.run('UPDATE heatmap_data SET count = count + 1 WHERE id = ?', [existingH.id]);
       } else {

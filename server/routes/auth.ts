@@ -6,6 +6,7 @@ import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { JWT_SECRET } from '../middleware/auth.ts';
 import { getAdminPermissions } from '../permissions.ts';
+import { isAccountLocked, recordLoginAttempt, logSecurityEvent, getClientIP } from '../middleware/security.ts';
 
 const router = Router();
 
@@ -72,8 +73,15 @@ async function enrichUserWithPlanFeatures(user: any): Promise<any> {
 router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
+    const ip = getClientIP(req);
 
-    // Use only columns that exist in initial migration (001) so login works before later migrations run
+    const lockStatus = await isAccountLocked(email, ip);
+    if (lockStatus.locked) {
+      const minutes = Math.ceil(lockStatus.remainingMs / 60000);
+      await logSecurityEvent('account_locked', ip, null, '/api/auth/login', `Locked account login attempt: ${email}`);
+      return res.status(429).json({ error: `Account temporarily locked due to too many failed attempts. Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.` });
+    }
+
     const user = await db.queryOne(
       'SELECT id, email, password as hash, name, role, status, plan_id FROM users WHERE email = ?',
       [email]
@@ -100,7 +108,9 @@ router.post('/login', loginLimiter, async (req, res) => {
         if (user.status === 'banned') {
           return res.status(403).json({ error: 'Account is banned' });
         }
-        // force_logout_at added in migration 002 - skip update if column missing
+
+        await recordLoginAttempt(email, ip, true);
+
         try {
           await db.run('UPDATE users SET force_logout_at = NULL WHERE id = ?', [user.id]);
         } catch (_) {}
@@ -127,6 +137,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     }
 
+    await recordLoginAttempt(email, ip, false);
+    await logSecurityEvent('failed_login', ip, null, '/api/auth/login', `Failed login: ${email}`);
     res.status(401).json({ error: 'Invalid credentials' });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
@@ -171,9 +183,9 @@ router.post('/signup', signupLimiter, async (req, res) => {
       return res.status(400).json({ error: err.issues[0].message });
     }
     if (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || err.code === '23505') {
-      res.status(400).json({ error: 'Email already exists' });
+      return res.status(400).json({ error: 'Email already exists' });
     } else {
-      res.status(500).json({ error: 'Server error' });
+      return res.status(500).json({ error: 'Server error' });
     }
   }
 });

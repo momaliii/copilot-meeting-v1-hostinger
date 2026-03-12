@@ -34,6 +34,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Relay audio blob from meeting tab to app tab
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) return false;
+
   if (message.type === 'extensionAudioToApp') {
     const { arrayBuffer, mimeType, action } = message;
     getAppUrl().then((appUrl) => {
@@ -75,8 +77,9 @@ async function handleDirectAnalyze(arrayBuffer, mimeType, durationSeconds, sendR
       return;
     }
 
-    const blob = new Blob([arrayBuffer], { type: mimeType || 'audio/webm' });
-    const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+    const safeMimeType = mimeType || 'audio/webm';
+    const blob = new Blob([arrayBuffer], { type: safeMimeType });
+    const ext = safeMimeType.includes('mp4') ? 'mp4' : safeMimeType.includes('ogg') ? 'ogg' : 'webm';
     const formData = new FormData();
     formData.append('audio', blob, `recording.${ext}`);
     formData.append('language', 'Original Language');

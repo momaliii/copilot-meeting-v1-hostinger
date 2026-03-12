@@ -29,7 +29,8 @@ export default function CheckoutPage() {
   };
 
   useEffect(() => {
-    fetch('/api/public/plans')
+    const controller = new AbortController();
+    fetch('/api/public/plans', { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
@@ -39,8 +40,9 @@ export default function CheckoutPage() {
           setSelectedPlanId(plan);
         }
       })
-      .catch(() => setPlans([]))
+      .catch((err) => { if (err.name !== 'AbortError') setPlans([]); })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, []);
 
   const validatePromo = async () => {

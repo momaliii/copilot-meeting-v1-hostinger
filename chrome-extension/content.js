@@ -218,7 +218,11 @@ function injectRecordButton() {
 
 injectRecordButton();
 
+let debounceTimer = null;
 const observer = new MutationObserver(() => {
-  if (!document.getElementById('copilot-record-container')) injectRecordButton();
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    if (!document.getElementById('copilot-record-container')) injectRecordButton();
+  }, 500);
 });
-observer.observe(document.body, { childList: true, subtree: true });
+observer.observe(document.body, { childList: true });

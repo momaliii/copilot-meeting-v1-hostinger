@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import type { AdminPermissions } from './types/admin';
 
 export type User = {
@@ -81,26 +81,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser();
   }, [token]);
 
-  const login = (userData: User, authToken: string, permissionData: AdminPermissions | null = null) => {
+  const login = useCallback((userData: User, authToken: string, permissionData: AdminPermissions | null = null) => {
     setUser(userData);
     setToken(authToken);
     setPermissions(permissionData);
     localStorage.setItem('token', authToken);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setToken(null);
     setPermissions(null);
     localStorage.removeItem('token');
-  };
+  }, []);
 
-  const updateUser = (userData: User) => {
+  const updateUser = useCallback((userData: User) => {
     setUser(userData);
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    user, token, permissions, adminViewMode, setAdminViewMode, login, logout, updateUser, setPermissions, loading,
+  }), [user, token, permissions, adminViewMode, setAdminViewMode, login, logout, updateUser, loading]);
 
   return (
-    <AuthContext.Provider value={{ user, token, permissions, adminViewMode, setAdminViewMode, login, logout, updateUser, setPermissions, loading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
