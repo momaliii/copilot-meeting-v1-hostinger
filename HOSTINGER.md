@@ -1,6 +1,6 @@
 # Hostinger deployment – 503 fix checklist
 
-If you see **503 Service Unavailable** on `darkgrey-sheep-352442.hostingersite.com`, the Node app is usually not starting. Check the following in your Hostinger **Node.js** app settings (or in the control panel where you configure the app).
+If you see **503 Service Unavailable** on `orangered-walrus-844045.hostingersite.com`, the Node app is usually not starting. Check the following in your Hostinger **Node.js** app settings (or in the control panel where you configure the app).
 
 ## 1. Build step (required)
 
@@ -38,7 +38,7 @@ Set these in the Hostinger app’s **Environment variables** (or .env in the rep
 | **DATABASE_URL** | **Yes** | Postgres connection string (e.g. Supabase). If missing, the app tries SQLite and can crash (e.g. GLIBC issue) → 503. |
 | **JWT_SECRET** | Yes      | Long random string (e.g. `openssl rand -base64 32`). |
 | **GEMINI_API_KEY** | Yes  | For AI analysis. |
-| **APP_URL**    | Yes      | Your site URL, e.g. `https://darkgrey-sheep-352442.hostingersite.com`. |
+| **APP_URL**    | Yes      | Your site URL, e.g. `https://orangered-walrus-844045.hostingersite.com`. |
 | **CORS_ORIGIN**| Yes      | Same as APP_URL, or comma-separated list of allowed origins. |
 
 Do **not** set `USE_SQLITE_FOR_DEV` (or leave it unset). Use Postgres only on Hostinger.
