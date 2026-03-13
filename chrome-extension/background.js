@@ -9,6 +9,80 @@ function getAppUrl() {
   });
 }
 
+// ── Recording State ──
+
+let recordingState = {
+  active: false,
+  paused: false,
+  startTime: 0,
+  pausedElapsed: 0,
+  platform: '',
+  tabId: null,
+};
+
+function updateBadge() {
+  if (!recordingState.active) {
+    chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+  if (recordingState.paused) {
+    chrome.action.setBadgeText({ text: '||' });
+    chrome.action.setBadgeBackgroundColor({ color: '#f59e0b' });
+  } else {
+    chrome.action.setBadgeText({ text: 'REC' });
+    chrome.action.setBadgeBackgroundColor({ color: '#dc2626' });
+  }
+}
+
+async function showNotification(title, message) {
+  const settings = await new Promise((r) => chrome.storage.sync.get(['showNotifications'], r));
+  if (settings.showNotifications === false) return;
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icon.png',
+    title,
+    message,
+    silent: true,
+  });
+}
+
+// ── Recording History ──
+
+async function addRecordingToHistory(entry) {
+  const result = await chrome.storage.local.get(['recordingHistory']);
+  const history = result.recordingHistory || [];
+  history.unshift(entry);
+  if (history.length > 10) history.length = 10;
+  await chrome.storage.local.set({ recordingHistory: history });
+}
+
+// ── Branding Cache ──
+
+async function getCachedBranding() {
+  const result = await chrome.storage.local.get(['branding', 'brandingFetchedAt']);
+  const age = Date.now() - (result.brandingFetchedAt || 0);
+  if (result.branding && age < 5 * 60 * 1000) return result.branding;
+
+  try {
+    const appUrl = await getAppUrl();
+    const res = await fetch(`${appUrl.replace(/\/$/, '')}/api/public/branding`);
+    if (res.ok) {
+      const data = await res.json();
+      const branding = {
+        siteName: data.site_name || 'Meeting Copilot',
+        logoUrl: data.logo_url || null,
+        themeColor: data.theme_color || '#4f46e5',
+      };
+      await chrome.storage.local.set({ branding, brandingFetchedAt: Date.now() });
+      return branding;
+    }
+  } catch {}
+
+  return result.branding || { siteName: 'Meeting Copilot', logoUrl: null, themeColor: '#4f46e5' };
+}
+
+// ── Commands ──
+
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'open-copilot') {
     const appUrl = await getAppUrl();
@@ -16,10 +90,13 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+// ── Context Menu ──
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const branding = await getCachedBranding();
   chrome.contextMenus.create({
     id: 'record-with-copilot',
-    title: 'Record this tab with Meeting Copilot',
+    title: `Record this tab with ${branding.siteName}`,
     contexts: ['page'],
   });
 });
@@ -32,9 +109,68 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-// Relay audio blob from meeting tab to app tab
+// ── Message Handling ──
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return false;
+
+  if (message.type === 'recordingStarted') {
+    recordingState = {
+      active: true,
+      paused: false,
+      startTime: Date.now(),
+      pausedElapsed: 0,
+      platform: message.platform || 'Meeting',
+      tabId: sender.tab?.id || null,
+    };
+    updateBadge();
+    showNotification('Recording Started', `Recording ${recordingState.platform}`);
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message.type === 'recordingPaused') {
+    recordingState.paused = true;
+    recordingState.pausedElapsed = message.elapsed || 0;
+    updateBadge();
+    showNotification('Recording Paused', `${recordingState.platform} recording paused`);
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message.type === 'recordingResumed') {
+    recordingState.paused = false;
+    updateBadge();
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message.type === 'recordingStopped') {
+    const duration = message.duration || 0;
+    const platform = recordingState.platform;
+    recordingState = { active: false, paused: false, startTime: 0, pausedElapsed: 0, platform: '', tabId: null };
+    updateBadge();
+    showNotification('Recording Stopped', `${platform} recording saved (${formatDuration(duration)})`);
+    addRecordingToHistory({
+      platform,
+      duration,
+      date: new Date().toISOString(),
+      title: `${platform} Recording`,
+    });
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message.type === 'getRecordingState') {
+    const elapsed = recordingState.active && !recordingState.paused
+      ? Math.floor((Date.now() - recordingState.startTime) / 1000)
+      : recordingState.pausedElapsed || 0;
+    sendResponse({
+      ...recordingState,
+      elapsed,
+    });
+    return true;
+  }
 
   if (message.type === 'extensionAudioToApp') {
     const { arrayBuffer, mimeType, action } = message;
@@ -57,7 +193,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // Phase 3: Direct API analyze - extension calls /api/analyze, then hands off result
   if (message.type === 'extensionAnalyzeDirectly') {
     const { arrayBuffer, mimeType, durationSeconds } = message;
     handleDirectAnalyze(arrayBuffer, mimeType, durationSeconds || 0, sendResponse);
@@ -66,6 +201,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
+function formatDuration(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// ── Direct Analyze ──
 
 async function handleDirectAnalyze(arrayBuffer, mimeType, durationSeconds, sendResponse) {
   try {
@@ -104,6 +247,8 @@ async function handleDirectAnalyze(arrayBuffer, mimeType, durationSeconds, sendR
       sendResponse({ ok: false, fallback: true });
       return;
     }
+
+    showNotification('Analysis Complete', 'Your meeting analysis is ready.');
 
     const appOrigin = new URL(appUrl).origin;
     chrome.tabs.query({ url: `${appOrigin}/*` }, async (tabs) => {

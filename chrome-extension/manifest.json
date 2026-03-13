@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Meeting Copilot",
-  "version": "1.4",
+  "version": "2.0",
   "description": "Quickly launch Meeting Copilot to record your Google Meet, Zoom, and Teams sessions.",
   "icons": {
     "128": "icon.png"
   },
-  "permissions": ["storage", "contextMenus", "tabs"],
+  "permissions": ["storage", "contextMenus", "tabs", "notifications"],
   "host_permissions": ["http://localhost:3000/*", "https://*.run.app/*"],
   "options_ui": {
     "page": "options.html"

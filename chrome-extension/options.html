@@ -2,102 +2,273 @@
 <html>
 <head>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      width: 420px;
-      padding: 24px;
+      width: 480px;
+      padding: 28px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin: 0;
       background-color: #f8fafc;
       color: #0f172a;
     }
+
     .header {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
     .logo {
-      width: 32px;
-      height: 32px;
+      width: 32px; height: 32px;
       background-color: #4f46e5;
       border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
+      display: flex; align-items: center; justify-content: center;
+      color: white; overflow: hidden;
     }
-    h1 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 700;
+    .logo img { width: 100%; height: 100%; object-fit: contain; }
+    h1 { font-size: 20px; font-weight: 700; }
+
+    .section {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 0;
+      margin-bottom: 16px;
+      overflow: hidden;
     }
-    label {
+    .section-title {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: #94a3b8;
+      padding: 14px 18px 8px;
+    }
+
+    .setting-row {
+      display: flex; align-items: center;
+      padding: 12px 18px;
+      border-top: 1px solid #f1f5f9;
+      gap: 12px;
+    }
+    .setting-row:first-child,
+    .section-title + .setting-row { border-top: none; }
+    .setting-info { flex: 1; }
+    .setting-label {
+      font-size: 14px; font-weight: 500;
+      color: #0f172a; margin-bottom: 2px;
+    }
+    .setting-hint {
+      font-size: 12px; color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 40px; height: 22px;
+      flex-shrink: 0;
+    }
+    .toggle input {
+      opacity: 0; width: 0; height: 0;
+      position: absolute;
+    }
+    .toggle-slider {
+      position: absolute; inset: 0;
+      background: #cbd5e1;
+      border-radius: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .toggle-slider:before {
+      content: "";
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 2px; bottom: 2px;
+      background: white;
+      border-radius: 50%;
+      transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .toggle input:checked + .toggle-slider {
+      background: #4f46e5;
+    }
+    .toggle input:checked + .toggle-slider:before {
+      transform: translateX(18px);
+    }
+
+    /* Input */
+    .input-row {
+      padding: 12px 18px;
+      border-top: 1px solid #f1f5f9;
+    }
+    .input-row label {
       display: block;
-      font-size: 14px;
-      font-weight: 600;
-      color: #334155;
-      margin-bottom: 8px;
+      font-size: 14px; font-weight: 500;
+      color: #0f172a; margin-bottom: 6px;
     }
-    input {
+    .input-row input, .input-row select {
       width: 100%;
-      padding: 10px 12px;
+      padding: 9px 12px;
       font-size: 14px;
       border: 1px solid #e2e8f0;
       border-radius: 8px;
-      box-sizing: border-box;
-      margin-bottom: 16px;
+      background: white;
+      color: #0f172a;
     }
-    input:focus {
+    .input-row input:focus, .input-row select:focus {
       outline: none;
       border-color: #4f46e5;
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
     }
-    .hint {
-      font-size: 12px;
-      color: #64748b;
-      margin-top: -8px;
-      margin-bottom: 16px;
+    .input-hint {
+      font-size: 12px; color: #94a3b8;
+      margin-top: 6px;
     }
-    .btn {
-      background-color: #4f46e5;
-      color: white;
+
+    /* Connection test */
+    .connection-row {
+      padding: 12px 18px;
+      border-top: 1px solid #f1f5f9;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .test-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none;
+      background: #f1f5f9; color: #334155;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .test-btn:hover { background: #e2e8f0; }
+    .connection-status {
+      font-size: 13px; color: #94a3b8;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.success { background: #22c55e; }
+    .status-dot.error { background: #ef4444; }
+    .status-dot.testing { background: #f59e0b; animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Save area */
+    .actions {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .save-btn {
+      background: #4f46e5; color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 10px 24px;
       border-radius: 8px;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 14px;
-      transition: all 0.2s;
+      font-weight: 600; font-size: 14px;
+      transition: all 0.15s;
     }
-    .btn:hover {
-      background-color: #4338ca;
-    }
-    .status {
-      margin-top: 16px;
+    .save-btn:hover { background: #4338ca; }
+    .status-msg {
       font-size: 13px;
-      color: #16a34a;
-      display: none;
+      transition: opacity 0.3s;
+      opacity: 0;
     }
-    .status.visible {
-      display: block;
-    }
+    .status-msg.visible { opacity: 1; }
+    .status-msg.success { color: #16a34a; }
+    .status-msg.error { color: #dc2626; }
   </style>
 </head>
 <body>
   <div class="header">
-    <div class="logo">
+    <div class="logo" id="logoContainer">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
     </div>
-    <h1>Meeting Copilot Settings</h1>
+    <h1 id="pageTitle">Meeting Copilot Settings</h1>
   </div>
 
-  <label for="appUrl">App URL</label>
-  <input type="url" id="appUrl" placeholder="https://your-meeting-copilot.run.app" />
-  <p class="hint">The URL where your Meeting Copilot app is hosted. Leave empty to use the default.</p>
+  <!-- Connection -->
+  <div class="section">
+    <div class="section-title">Connection</div>
+    <div class="input-row">
+      <label for="appUrl">App URL</label>
+      <input type="url" id="appUrl" placeholder="https://your-app.run.app" />
+      <p class="input-hint">Where your Meeting Copilot app is hosted. Leave empty for default (localhost:3000).</p>
+    </div>
+    <div class="connection-row">
+      <button class="test-btn" id="testBtn">Test Connection</button>
+      <div class="connection-status" id="connectionStatus">
+        <span class="status-dot" id="statusDot" style="display:none"></span>
+        <span id="statusText">Not tested</span>
+      </div>
+    </div>
+  </div>
 
-  <button id="saveBtn" class="btn">Save</button>
-  <p id="status" class="status">Settings saved.</p>
+  <!-- Recording -->
+  <div class="section">
+    <div class="section-title">Recording</div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Include microphone audio</div>
+        <div class="setting-hint">Record both tab audio and your microphone</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="includeMic" checked />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="input-row">
+      <label for="recordingQuality">Recording quality</label>
+      <select id="recordingQuality">
+        <option value="low">Low (64 kbps) -- smaller files</option>
+        <option value="medium" selected>Medium (128 kbps) -- recommended</option>
+        <option value="high">High (256 kbps) -- best quality</option>
+      </select>
+    </div>
+  </div>
 
+  <!-- Behavior -->
+  <div class="section">
+    <div class="section-title">Behavior</div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Auto-detect meetings</div>
+        <div class="setting-hint">Show a prompt when a meeting starts</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="autoDetect" checked />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Show notifications</div>
+        <div class="setting-hint">Desktop alerts for recording events</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="showNotifications" checked />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Auto-collapse widget</div>
+        <div class="setting-hint">Minimize to a small dot after 5 seconds</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="autoCollapse" />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="saveBtn" class="save-btn">Save Settings</button>
+    <span id="statusMsg" class="status-msg"></span>
+  </div>
+
+  <script src="shared.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
