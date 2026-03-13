@@ -154,7 +154,7 @@ export default function App() {
   const [isTestingMic, setIsTestingMic] = useState(false);
 
   const [runTour, setRunTour] = useState(false);
-  const [usage, setUsage] = useState<{ usedSeconds: number, limitSeconds: number, remainingSeconds: number, limitMinutes: number, languageChangesLimit?: number } | null>(null);
+  const [usage, setUsage] = useState<{ usedSeconds: number, limitSeconds: number, remainingSeconds: number, limitMinutes: number, languageChangesLimit?: number, isUnlimited?: boolean, softLimitMinutes?: number, softLimitSeconds?: number, hardLimitMinutes?: number, hardLimitSeconds?: number, planExpiresAt?: string | null } | null>(null);
   const [userAnalytics, setUserAnalytics] = useState<UserAnalytics | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [userAnalyticsLoading, setUserAnalyticsLoading] = useState(false);
@@ -170,7 +170,7 @@ export default function App() {
     typeof window !== 'undefined' ? window.location.pathname : '/'
   );
 
-  const usageRef = useRef<{ usedSeconds: number, limitSeconds: number, remainingSeconds: number, limitMinutes: number, languageChangesLimit?: number } | null>(null);
+  const usageRef = useRef<{ usedSeconds: number, limitSeconds: number, remainingSeconds: number, limitMinutes: number, languageChangesLimit?: number, isUnlimited?: boolean, softLimitMinutes?: number, softLimitSeconds?: number, hardLimitMinutes?: number, hardLimitSeconds?: number, planExpiresAt?: string | null } | null>(null);
   useEffect(() => {
     usageRef.current = usage;
   }, [usage]);
@@ -1425,7 +1425,8 @@ export default function App() {
   };
 
   const startRecording = async () => {
-    if (usage && usage.remainingSeconds <= 0) {
+    const isUnlimited = (usage as any)?.isUnlimited || user?.role === 'admin';
+    if (usage && !isUnlimited && usage.remainingSeconds <= 0) {
       setError('You have reached your monthly recording limit. Please upgrade your plan to continue recording.');
       return;
     }
@@ -1554,11 +1555,13 @@ export default function App() {
         setRecordingTime((prev) => {
           const newTime = prev + 1;
           const currentUsage = usageRef.current;
-          const maxTime = currentUsage ? Math.min(recordingCap, currentUsage.remainingSeconds) : recordingCap;
+          const isUnlim = currentUsage?.isUnlimited || user?.role === 'admin';
+          const effectiveRemaining = isUnlim ? recordingCap : (currentUsage?.remainingSeconds ?? recordingCap);
+          const maxTime = Math.min(recordingCap, effectiveRemaining);
           
           if (newTime >= maxTime) {
             stopRecording();
-            setError(currentUsage && currentUsage.remainingSeconds < recordingCap 
+            setError(!isUnlim && currentUsage && currentUsage.remainingSeconds < recordingCap 
               ? 'Monthly recording limit reached.' 
               : `Maximum recording length (${recordingCap / 60} minutes) reached.`);
             return prev;
@@ -1755,11 +1758,13 @@ export default function App() {
         setRecordingTime((prev) => {
           const newTime = prev + 1;
           const currentUsage = usageRef.current;
-          const maxTime = currentUsage ? Math.min(recordingCap, currentUsage.remainingSeconds) : recordingCap;
+          const isUnlim = currentUsage?.isUnlimited || user?.role === 'admin';
+          const effectiveRemaining = isUnlim ? recordingCap : (currentUsage?.remainingSeconds ?? recordingCap);
+          const maxTime = Math.min(recordingCap, effectiveRemaining);
           
           if (newTime >= maxTime) {
             stopRecording();
-            setError(currentUsage && currentUsage.remainingSeconds < recordingCap 
+            setError(!isUnlim && currentUsage && currentUsage.remainingSeconds < recordingCap 
               ? 'Monthly recording limit reached.' 
               : `Maximum recording length (${recordingCap / 60} minutes) reached.`);
             return prev;
@@ -3025,6 +3030,24 @@ export default function App() {
                   setAnalysis(updated.analysis);
                 } catch (err) {
                   console.error('Failed to update speaker name', err);
+                }
+              } : undefined}
+              onTranscriptEdit={currentMeetingId ? async (newTranscript) => {
+                const meeting = meetings.find(m => m.id === currentMeetingId);
+                if (!meeting) return;
+                const updated = {
+                  ...meeting,
+                  analysis: {
+                    ...meeting.analysis,
+                    transcript: newTranscript,
+                  },
+                };
+                try {
+                  await saveMeetingToDB(updated);
+                  setMeetings(meetings.map(m => m.id === currentMeetingId ? updated : m));
+                  setAnalysis(updated.analysis);
+                } catch (err) {
+                  console.error('Failed to update transcript', err);
                 }
               } : undefined}
               feedbackRating={feedbackRating}

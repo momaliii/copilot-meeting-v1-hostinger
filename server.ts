@@ -7,7 +7,7 @@ import { createServer as createViteServer } from 'vite';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { initDb } from './server/db.ts';
+import { initDb, startPlanExpirationScheduler } from './server/db.ts';
 import db from './server/db.ts';
 import authRoutes from './server/routes/auth.ts';
 import adminRoutes from './server/routes/admin.ts';
@@ -19,6 +19,7 @@ import translateRoutes from './server/routes/translate.ts';
 import { isTranscribeAvailable, createTranscribeWebSocketServer } from './server/routes/transcribe.ts';
 import { JWT_SECRET } from './server/middleware/auth.ts';
 import { securityGuard, loadBlockedIPs, startSecurityCleanup } from './server/middleware/security.ts';
+import { planAiRateLimiter } from './server/middleware/planRateLimit.ts';
 
 async function startServer() {
   const app = express();
@@ -85,14 +86,21 @@ async function startServer() {
     return mutationLimiter(req, res, next);
   });
 
-  const aiLimiter = rateLimit({
+  // Plan-tier AI rate limiting (applied after auth in route handlers via planAiRateLimiter)
+  // Fallback static limiter for unauthenticated requests
+  const aiLimiterFallback = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 30,
+    max: 15,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many AI requests, please try again later.' },
   });
-  app.use(['/api/analyze', '/api/translate'], aiLimiter);
+  app.use(['/api/analyze', '/api/translate'], (req: any, res: any, next: any) => {
+    if (req.headers.authorization) {
+      return planAiRateLimiter(req, res, next);
+    }
+    return aiLimiterFallback(req, res, next);
+  });
 
   const contactLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
@@ -129,6 +137,7 @@ async function startServer() {
   await loadBlockedIPs();
   app.use('/api', securityGuard);
   startSecurityCleanup();
+  startPlanExpirationScheduler();
 
   // API Routes
   app.use('/api/auth/verify-2fa', verify2faLimiter);
@@ -164,10 +173,46 @@ async function startServer() {
 
   app.get('/api/public/plans', async (req, res) => {
     try {
-      const plans = (await db.query('SELECT * FROM plans ORDER BY price ASC')).rows;
+      const plans = (await db.query("SELECT * FROM plans WHERE id != 'admin' ORDER BY price ASC")).rows;
       res.json(plans);
     } catch (err) {
       res.status(500).json({ error: 'Failed to fetch plans' });
+    }
+  });
+
+  app.get('/api/public/plans/features', async (req, res) => {
+    try {
+      const plans = (await db.query("SELECT * FROM plans WHERE id != 'admin' ORDER BY price ASC")).rows;
+      const featurePlans = plans.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        features: {
+          minutesLimit: p.minutes_limit,
+          languageChanges: p.language_changes_limit != null ? Number(p.language_changes_limit) : -1,
+          videoCaption: !!(p.video_caption === true || p.video_caption === 1),
+          cloudSave: !!(p.cloud_save === true || p.cloud_save === 1),
+          proAnalysis: !!(p.pro_analysis_enabled === true || p.pro_analysis_enabled === 1),
+          analysisModel: p.analysis_model || 'gemini-2.5-flash',
+          transcriptModel: p.transcript_model || 'gemini-2.5-flash',
+          softLimitPercent: p.soft_limit_percent ?? 100,
+          hardLimitPercent: p.hard_limit_percent ?? 100,
+        },
+      }));
+      const featureLabels: Record<string, string> = {
+        minutesLimit: 'Monthly Minutes',
+        languageChanges: 'Translation Changes',
+        videoCaption: 'Video Captioning',
+        cloudSave: 'Cloud Save',
+        proAnalysis: 'Pro Analysis',
+        analysisModel: 'Analysis Model',
+        transcriptModel: 'Transcript Model',
+        softLimitPercent: 'Soft Limit (%)',
+        hardLimitPercent: 'Hard Limit (%)',
+      };
+      res.json({ plans: featurePlans, featureLabels });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch plan features' });
     }
   });
 

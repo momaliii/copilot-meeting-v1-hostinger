@@ -1149,6 +1149,8 @@ export default function AdminDashboard() {
         pro_analysis_enabled: !!(editingPlan.pro_analysis_enabled === true || editingPlan.pro_analysis_enabled === 1),
         analysis_model: editingPlan.analysis_model || 'gemini-2.5-flash',
         transcript_model: editingPlan.transcript_model || 'gemini-2.5-flash',
+        soft_limit_percent: editingPlan.soft_limit_percent ?? 100,
+        hard_limit_percent: editingPlan.hard_limit_percent ?? 100,
       };
       const payload = editingPlan.isNew ? { ...basePayload, id: editingPlan.id } : basePayload;
       await apiRequest(url, { method, headers, body: JSON.stringify(payload) });
@@ -1181,14 +1183,16 @@ export default function AdminDashboard() {
     setEditingPlan({
       id: newId,
       name: plan.name + ' (Copy)',
-      price: plan.price,
-      minutes_limit: plan.minutes_limit,
+      price: Math.round((plan.price + 5) * 100) / 100,
+      minutes_limit: Math.round(plan.minutes_limit * 1.2),
       language_changes_limit: plan.language_changes_limit ?? -1,
       video_caption: plan.video_caption,
       cloud_save: plan.cloud_save,
       pro_analysis_enabled: plan.pro_analysis_enabled,
       analysis_model: plan.analysis_model || 'gemini-2.5-flash',
       transcript_model: plan.transcript_model || 'gemini-2.5-flash',
+      soft_limit_percent: plan.soft_limit_percent ?? 100,
+      hard_limit_percent: plan.hard_limit_percent ?? 100,
       isNew: true,
     });
     setShowPlanModal(true);
@@ -1665,7 +1669,7 @@ export default function AdminDashboard() {
             error={sectionError.plans}
             currentPermissions={currentPermissions}
             onNewPlan={() => {
-              setEditingPlan({ id: '', name: '', price: 0, minutes_limit: 60, language_changes_limit: -1, video_caption: false, cloud_save: false, pro_analysis_enabled: false, analysis_model: 'gemini-2.5-flash', transcript_model: 'gemini-2.5-flash', isNew: true });
+              setEditingPlan({ id: '', name: '', price: 0, minutes_limit: 60, language_changes_limit: -1, video_caption: false, cloud_save: false, pro_analysis_enabled: false, analysis_model: 'gemini-2.5-flash', transcript_model: 'gemini-2.5-flash', soft_limit_percent: 100, hard_limit_percent: 100, isNew: true });
               setShowPlanModal(true);
             }}
             onEditPlan={(p) => {
@@ -2324,11 +2328,23 @@ export default function AdminDashboard() {
                         </select>
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Soft Limit %</label>
+                        <input type="number" min={1} max={200} value={editingPlan.soft_limit_percent ?? 100} onChange={(e) => setEditingPlan({ ...editingPlan, soft_limit_percent: Number(e.target.value) || 100 })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                        <p className="text-xs text-slate-500 mt-1">Warning at this % of limit</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Hard Limit %</label>
+                        <input type="number" min={1} max={200} value={editingPlan.hard_limit_percent ?? 100} onChange={(e) => setEditingPlan({ ...editingPlan, hard_limit_percent: Number(e.target.value) || 100 })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                        <p className="text-xs text-slate-500 mt-1">Hard stop at this % of limit</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-                    <h3 className="text-sm font-medium text-slate-700">{t('admin.costEstimator')}</h3>
+                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                    <h3 className="text-sm font-semibold text-indigo-700">{t('admin.costEstimator')}</h3>
                     <div className="space-y-2">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked={planEstimateFeatures.videoCaption} onChange={(e) => setPlanEstimateFeatures((f) => ({ ...f, videoCaption: e.target.checked }))} className="rounded border-slate-300" />
@@ -2382,15 +2398,76 @@ export default function AdminDashboard() {
                 <div className="rounded-xl border border-slate-200 p-3"><div className="text-slate-500">{t('admin.feedbackCount')}</div><div className="text-xl font-semibold">{userDetail.feedbackCount || 0}</div></div>
               </div>
               {currentPermissions.manageUsers && (
-                <form onSubmit={handleUsageOverride} className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">{t('admin.extraMinutesOverride')}</label>
-                    <input type="number" min={0} value={usageOverrideValue} onChange={(e) => setUsageOverrideValue(parseInt(e.target.value, 10) || 0)} className="w-full px-3 py-2 border border-slate-200 rounded-lg" />
+                <div className="space-y-3">
+                  <form onSubmit={handleUsageOverride} className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">{t('admin.extraMinutesOverride')}</label>
+                      <input type="number" min={0} value={usageOverrideValue} onChange={(e) => setUsageOverrideValue(parseInt(e.target.value, 10) || 0)} className="w-full px-3 py-2 border border-slate-200 rounded-lg" />
+                    </div>
+                    <button type="submit" disabled={usageOverrideSaving} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium">
+                      {usageOverrideSaving ? t('admin.saving') : t('admin.save')}
+                    </button>
+                  </form>
+                  <div className="rounded-xl border border-slate-200 p-3">
+                    <p className="text-sm font-medium text-slate-700 mb-2">Per-User Feature Overrides</p>
+                    <p className="text-xs text-slate-500 mb-3">Set to override plan defaults. Leave empty to use plan value.</p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      {[
+                        { label: 'Language Changes', key: 'language_changes_override', type: 'number' as const },
+                        { label: 'Video Caption', key: 'video_caption_override', type: 'boolean' as const },
+                        { label: 'Cloud Save', key: 'cloud_save_override', type: 'boolean' as const },
+                        { label: 'Pro Analysis', key: 'pro_analysis_override', type: 'boolean' as const },
+                      ].map(({ label, key, type }) => (
+                        <div key={key} className="flex items-center justify-between gap-2 py-1">
+                          <span className="text-slate-600">{label}</span>
+                          {type === 'boolean' ? (
+                            <select
+                              value={userDetail.user?.[key] == null ? '' : String(userDetail.user[key])}
+                              onChange={async (e) => {
+                                const val = e.target.value === '' ? null : e.target.value === '1';
+                                try {
+                                  await apiRequest(`/api/admin/users/${userDetailId}/overrides`, {
+                                    method: 'PUT', headers,
+                                    body: JSON.stringify({ [key]: val }),
+                                  });
+                                  notify('Override saved');
+                                  loadUserDetail(userDetailId!);
+                                } catch (err: any) { notify(err.message, 'error'); }
+                              }}
+                              className="px-2 py-1 border border-slate-200 rounded text-xs w-24"
+                            >
+                              <option value="">Plan default</option>
+                              <option value="1">Enabled</option>
+                              <option value="0">Disabled</option>
+                            </select>
+                          ) : (
+                            <input
+                              type="number"
+                              min={-1}
+                              placeholder="Plan default"
+                              value={userDetail.user?.[key] ?? ''}
+                              onChange={async (e) => {
+                                const val = e.target.value === '' ? null : Number(e.target.value);
+                                try {
+                                  await apiRequest(`/api/admin/users/${userDetailId}/overrides`, {
+                                    method: 'PUT', headers,
+                                    body: JSON.stringify({ [key]: val }),
+                                  });
+                                  notify('Override saved');
+                                  loadUserDetail(userDetailId!);
+                                } catch (err: any) { notify(err.message, 'error'); }
+                              }}
+                              className="px-2 py-1 border border-slate-200 rounded text-xs w-24"
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {userDetail.user?.plan_expires_at && (
+                      <p className="text-xs text-slate-500 mt-2">Plan expires: {new Date(userDetail.user.plan_expires_at).toLocaleDateString()}</p>
+                    )}
                   </div>
-                  <button type="submit" disabled={usageOverrideSaving} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium">
-                    {usageOverrideSaving ? t('admin.saving') : t('admin.save')}
-                  </button>
-                </form>
+                </div>
               )}
               {(() => {
                 const meetings = (userDetail.recentMeetings || []).map((m: { id: string; title: string; date: string; duration: number }) => ({ type: 'meeting' as const, id: m.id, date: m.date, data: m }));

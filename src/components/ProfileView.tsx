@@ -503,6 +503,11 @@ export default function ProfileView({ onPreferencesChange, onNavigateToCheckout 
             <p className="mt-1 font-medium text-slate-900 capitalize">
               {user?.role === 'admin' ? t('common.admin') : user?.plan_id || 'starter'}
             </p>
+            {usage && (usage as any).planExpiresAt && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                {t('profile.expiresOn', { date: new Date((usage as any).planExpiresAt).toLocaleDateString() })}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{t('profile.usage')}</p>

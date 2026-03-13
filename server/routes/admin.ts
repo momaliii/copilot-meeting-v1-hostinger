@@ -42,6 +42,8 @@ const planSchema = z.object({
   pro_analysis_enabled: z.boolean().optional(),
   analysis_model: z.string().max(100).optional().refine((v) => !v || GEMINI_MODELS_ALLOWED.includes(v), { message: 'Invalid analysis model' }),
   transcript_model: z.string().max(100).optional().refine((v) => !v || GEMINI_MODELS_ALLOWED.includes(v), { message: 'Invalid transcript model' }),
+  soft_limit_percent: z.number().int().min(1).max(200).optional(),
+  hard_limit_percent: z.number().int().min(1).max(200).optional(),
 });
 
 const moderationActionSchema = z.object({
@@ -359,7 +361,7 @@ router.get('/users', requirePermission('viewUsers'), async (req: any, res) => {
 });
 
 router.get('/users/:id', requirePermission('viewUsers'), async (req: any, res) => {
-  const user = await db.queryOne('SELECT id, email, name, role, status, plan_id, extra_minutes_override FROM users WHERE id = ?', [req.params.id]);
+  const user = await db.queryOne('SELECT id, email, name, role, status, plan_id, extra_minutes_override, language_changes_override, video_caption_override, cloud_save_override, pro_analysis_override, plan_expires_at, plan_started_at FROM users WHERE id = ?', [req.params.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   const monthFilter = sqlCurrentMonth('date');
@@ -432,6 +434,11 @@ router.post('/users/:id/role', requirePermission('manageRoles'), async (req: any
     const { role } = roleChangeSchema.parse(req.body);
     if (req.params.id === 'admin-1') return res.status(403).json({ error: 'Cannot change default admin role' });
     await db.run('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
+    if (role === 'admin') {
+      await db.run("UPDATE users SET plan_id = 'admin' WHERE id = ?", [req.params.id]);
+    } else {
+      await db.run("UPDATE users SET plan_id = 'starter' WHERE id = ? AND plan_id = 'admin'", [req.params.id]);
+    }
     await logAdminAction(req.admin.id, 'user_role_changed', req.params.id, { role });
     res.json({ success: true });
   } catch (err: any) {
@@ -463,12 +470,61 @@ router.post('/users/:id/usage-override', requirePermission('manageUsers'), async
   }
 });
 
+const userOverridesSchema = z.object({
+  extra_minutes_override: z.number().int().min(0).max(10000).optional(),
+  language_changes_override: z.number().int().min(-1).max(1000).nullable().optional(),
+  video_caption_override: z.union([z.boolean(), z.number()]).nullable().optional(),
+  cloud_save_override: z.union([z.boolean(), z.number()]).nullable().optional(),
+  pro_analysis_override: z.union([z.boolean(), z.number()]).nullable().optional(),
+});
+
+router.put('/users/:id/overrides', requirePermission('manageUsers'), async (req: any, res) => {
+  try {
+    const payload = userOverridesSchema.parse(req.body);
+    const updates: string[] = [];
+    const args: any[] = [];
+
+    if (payload.extra_minutes_override !== undefined) {
+      updates.push('extra_minutes_override = ?');
+      args.push(payload.extra_minutes_override);
+    }
+    if (payload.language_changes_override !== undefined) {
+      updates.push('language_changes_override = ?');
+      args.push(payload.language_changes_override);
+    }
+    if (payload.video_caption_override !== undefined) {
+      updates.push('video_caption_override = ?');
+      args.push(payload.video_caption_override == null ? null : (payload.video_caption_override ? 1 : 0));
+    }
+    if (payload.cloud_save_override !== undefined) {
+      updates.push('cloud_save_override = ?');
+      args.push(payload.cloud_save_override == null ? null : (payload.cloud_save_override ? 1 : 0));
+    }
+    if (payload.pro_analysis_override !== undefined) {
+      updates.push('pro_analysis_override = ?');
+      args.push(payload.pro_analysis_override == null ? null : (payload.pro_analysis_override ? 1 : 0));
+    }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'No overrides provided' });
+    args.push(req.params.id);
+    await db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, args);
+    await logAdminAction(req.admin.id, 'user_overrides_updated', req.params.id, payload);
+    res.json({ success: true });
+  } catch (err: any) {
+    if (err instanceof z.ZodError) return res.status(400).json({ error: err.issues[0].message });
+    res.status(500).json({ error: 'Failed to update user overrides' });
+  }
+});
+
 router.post('/users/:id/plan', requirePermission('manageUsers'), async (req: any, res) => {
   try {
     if (!req.permissions.managePlans) {
       return res.status(403).json({ error: 'Missing required permission' });
     }
     const { plan_id } = userPlanSchema.parse(req.body);
+    if (plan_id === 'admin') {
+      return res.status(403).json({ error: 'The admin plan is assigned automatically to admin users' });
+    }
     const plan = await db.queryOne('SELECT id FROM plans WHERE id = ?', [plan_id]);
     if (!plan) return res.status(400).json({ error: 'Invalid plan' });
     await db.run('UPDATE users SET plan_id = ? WHERE id = ?', [plan_id, req.params.id]);
@@ -607,6 +663,42 @@ Return a JSON object with: id, name, price (number, USD/month), minutes_limit (n
   }
 });
 
+router.get('/plans/:id/impact', requirePermission('managePlans'), async (req, res) => {
+  try {
+    const planId = req.params.id;
+    const plan = await db.queryOne('SELECT * FROM plans WHERE id = ?', [planId]);
+    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+
+    const userCount = (await db.queryOne("SELECT COUNT(*) as count FROM users WHERE plan_id = ? AND role = 'user'", [planId]))?.count ?? 0;
+
+    const monthFilter = sqlCurrentMonth('date');
+    const avgUsageRow = await db.queryOne(
+      `SELECT AVG(total) as avg_seconds FROM (SELECT COALESCE(SUM(duration), 0) as total FROM ${USAGE_TABLE} WHERE user_id IN (SELECT id FROM users WHERE plan_id = ?) AND ${monthFilter} GROUP BY user_id)`,
+      [planId]
+    );
+    const avgUsage = Math.round(Number(avgUsageRow?.avg_seconds ?? 0) / 60);
+
+    const newMinutes = req.query.new_minutes ? Number(req.query.new_minutes) : null;
+    let usersOverNewLimit = 0;
+    if (newMinutes != null && newMinutes > 0) {
+      const overRow = await db.queryOne(
+        `SELECT COUNT(*) as count FROM (SELECT user_id, COALESCE(SUM(duration), 0) as total FROM ${USAGE_TABLE} WHERE user_id IN (SELECT id FROM users WHERE plan_id = ?) AND ${monthFilter} GROUP BY user_id HAVING total > ?)`,
+        [planId, newMinutes * 60]
+      );
+      usersOverNewLimit = Number(overRow?.count ?? 0);
+    }
+
+    res.json({
+      userCount: Number(userCount),
+      avgUsage,
+      usersOverNewLimit,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get plan impact' });
+  }
+});
+
 router.post('/plans/estimate', requirePermission('managePlans'), async (req, res) => {
   try {
     const { minutes_limit, videoCaption, cloudSave, unlimitedTranslations } = planEstimateSchema.parse(req.body);
@@ -638,16 +730,21 @@ router.post('/plans/estimate', requirePermission('managePlans'), async (req, res
 router.post('/plans', requirePermission('managePlans'), async (req, res) => {
   try {
     const parsed = planSchema.parse(req.body);
-    const { id, name, price, minutes_limit, language_changes_limit, video_caption, cloud_save, pro_analysis_enabled, analysis_model, transcript_model } = parsed;
+    if (parsed.id === 'admin') {
+      return res.status(403).json({ error: 'The "admin" plan ID is reserved' });
+    }
+    const { id, name, price, minutes_limit, language_changes_limit, video_caption, cloud_save, pro_analysis_enabled, analysis_model, transcript_model, soft_limit_percent, hard_limit_percent } = parsed;
     const langLimit = language_changes_limit ?? -1;
     const vidCap = video_caption ? 1 : 0;
     const cloudSv = cloud_save ? 1 : 0;
     const proAnalysis = pro_analysis_enabled ? 1 : 0;
     const model = analysis_model || 'gemini-2.5-flash';
     const transcriptModel = transcript_model || 'gemini-2.5-flash';
+    const softPct = soft_limit_percent ?? 100;
+    const hardPct = hard_limit_percent ?? 100;
     await db.run(
-      'INSERT INTO plans (id, name, price, minutes_limit, language_changes_limit, video_caption, cloud_save, pro_analysis_enabled, analysis_model, transcript_model) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, name, price, minutes_limit, langLimit, vidCap, cloudSv, proAnalysis, model, transcriptModel]
+      'INSERT INTO plans (id, name, price, minutes_limit, language_changes_limit, video_caption, cloud_save, pro_analysis_enabled, analysis_model, transcript_model, soft_limit_percent, hard_limit_percent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, name, price, minutes_limit, langLimit, vidCap, cloudSv, proAnalysis, model, transcriptModel, softPct, hardPct]
     );
     await logAdminAction((req as any).admin.id, 'plan_created', null, { id, name, price, minutes_limit, language_changes_limit: langLimit });
     res.json({ success: true });
@@ -659,6 +756,9 @@ router.post('/plans', requirePermission('managePlans'), async (req, res) => {
 
 router.put('/plans/:id', requirePermission('managePlans'), async (req, res) => {
   try {
+    if (req.params.id === 'admin') {
+      return res.status(403).json({ error: 'The admin plan cannot be modified' });
+    }
     const payload = planSchema.omit({ id: true }).parse(req.body);
     const langLimit = payload.language_changes_limit ?? -1;
     const vidCap = payload.video_caption ? 1 : 0;
@@ -666,9 +766,11 @@ router.put('/plans/:id', requirePermission('managePlans'), async (req, res) => {
     const proAnalysis = payload.pro_analysis_enabled ? 1 : 0;
     const model = payload.analysis_model || 'gemini-2.5-flash';
     const transcriptModel = payload.transcript_model || 'gemini-2.5-flash';
+    const softPct = payload.soft_limit_percent ?? 100;
+    const hardPct = payload.hard_limit_percent ?? 100;
     await db.run(
-      'UPDATE plans SET name = ?, price = ?, minutes_limit = ?, language_changes_limit = ?, video_caption = ?, cloud_save = ?, pro_analysis_enabled = ?, analysis_model = ?, transcript_model = ? WHERE id = ?',
-      [payload.name, payload.price, payload.minutes_limit, langLimit, vidCap, cloudSv, proAnalysis, model, transcriptModel, req.params.id]
+      'UPDATE plans SET name = ?, price = ?, minutes_limit = ?, language_changes_limit = ?, video_caption = ?, cloud_save = ?, pro_analysis_enabled = ?, analysis_model = ?, transcript_model = ?, soft_limit_percent = ?, hard_limit_percent = ? WHERE id = ?',
+      [payload.name, payload.price, payload.minutes_limit, langLimit, vidCap, cloudSv, proAnalysis, model, transcriptModel, softPct, hardPct, req.params.id]
     );
     await logAdminAction((req as any).admin.id, 'plan_updated', null, { id: req.params.id, ...payload });
     res.json({ success: true });
@@ -681,6 +783,9 @@ router.put('/plans/:id', requirePermission('managePlans'), async (req, res) => {
 router.delete('/plans/:id', requirePermission('managePlans'), async (req, res) => {
   try {
     const planId = req.params.id;
+    if (planId === 'admin') {
+      return res.status(403).json({ error: 'The admin plan cannot be deleted' });
+    }
     const plan = await db.queryOne('SELECT id FROM plans WHERE id = ?', [planId]);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
     const userCount = (await db.queryOne('SELECT COUNT(*) as count FROM users WHERE plan_id = ?', [planId]))?.count ?? 0;

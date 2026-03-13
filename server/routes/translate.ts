@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { authenticateToken } from '../middleware/auth.ts';
 import db from '../db.ts';
+import { getUserEffectivePlan } from '../utils/planLimits.ts';
 
 const router = Router();
 router.use(authenticateToken);
@@ -27,9 +28,8 @@ router.post('/', async (req: any, res) => {
       return res.status(400).json({ error: 'Use original analysis for Original Language' });
     }
 
-    const userRow = await db.queryOne('SELECT plan_id, role FROM users WHERE id = ?', [req.user.id]);
-    const plan = userRow ? await db.queryOne('SELECT language_changes_limit FROM plans WHERE id = ?', [userRow.plan_id]) : null;
-    const limit = userRow?.role === 'admin' ? -1 : (plan?.language_changes_limit != null ? Number(plan.language_changes_limit) : -1);
+    const effective = await getUserEffectivePlan(req.user.id);
+    const limit = effective ? effective.languageChangesLimit : -1;
     if (limit !== -1 && meetingId) {
       const usageRow = await db.queryOne(
         'SELECT COUNT(*) as count FROM meeting_usage WHERE user_id = ? AND meeting_id = ?',

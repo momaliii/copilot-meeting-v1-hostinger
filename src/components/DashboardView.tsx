@@ -35,6 +35,12 @@ type Usage = {
   remainingSeconds: number;
   limitMinutes: number;
   languageChangesLimit?: number;
+  isUnlimited?: boolean;
+  softLimitMinutes?: number;
+  softLimitSeconds?: number;
+  hardLimitMinutes?: number;
+  hardLimitSeconds?: number;
+  planExpiresAt?: string | null;
 };
 
 type User = {
@@ -134,8 +140,18 @@ export default function DashboardView({
     : meetings;
   const recentMeetingsToShow = recentMeetingsFiltered.slice(0, 5);
 
-  const isNearLimit = usage && usage.remainingSeconds <= Math.floor(usage.limitSeconds * 0.2);
-  const isAdminUnlimited = user?.role === 'admin';
+  const isAdminUnlimited = !!(usage?.isUnlimited || user?.role === 'admin');
+  const softLimitMin = usage?.softLimitMinutes ?? usage?.limitMinutes ?? 0;
+  const hardLimitMin = usage?.hardLimitMinutes ?? usage?.limitMinutes ?? 0;
+  const usedMin = usage ? Math.ceil(usage.usedSeconds / 60) : 0;
+  const usagePct = usage && usage.limitMinutes > 0 ? (usedMin / usage.limitMinutes) * 100 : 0;
+  const isSoftExceeded = !isAdminUnlimited && usage && softLimitMin > 0 && usedMin >= softLimitMin;
+  const isNearLimit = !isAdminUnlimited && usage && usagePct >= 80;
+  const isCritical = !isAdminUnlimited && usage && usagePct >= 90;
+
+  const daysUntilExpiry = usage?.planExpiresAt
+    ? Math.ceil((new Date(usage.planExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
 
   return (
     <section className="space-y-6 animate-in fade-in" aria-labelledby="dashboard-heading">
@@ -355,61 +371,71 @@ export default function DashboardView({
           </div>
           {!isAdminUnlimited && (
             <>
-              <div className="w-full bg-slate-200 rounded-full h-2">
+              <div className="relative w-full bg-slate-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all ${
-                    usage.usedSeconds / 60 >= usage.limitMinutes
+                    isSoftExceeded
                       ? 'bg-red-500'
-                      : usage.usedSeconds / 60 >= usage.limitMinutes * 0.8
-                        ? 'bg-amber-500'
-                        : 'bg-indigo-500'
+                      : isCritical
+                        ? 'bg-red-400'
+                        : isNearLimit
+                          ? 'bg-amber-500'
+                          : 'bg-indigo-500'
                   }`}
                   style={{
-                    width: `${Math.min(100, (usage.usedSeconds / 60 / usage.limitMinutes) * 100)}%`,
+                    width: `${Math.min(100, usagePct)}%`,
                   }}
                 />
+                {usage && usage.limitMinutes > 0 && softLimitMin < usage.limitMinutes && (
+                  <div
+                    className="absolute top-0 h-2 w-0.5 bg-amber-400"
+                    style={{ left: `${(softLimitMin / usage.limitMinutes) * 100}%` }}
+                    title={`Soft limit: ${softLimitMin} min`}
+                  />
+                )}
+                {usage && usage.limitMinutes > 0 && hardLimitMin > usage.limitMinutes && (
+                  <div
+                    className="absolute top-0 h-2 w-0.5 bg-red-400"
+                    style={{ left: `${Math.min(100, (hardLimitMin / (hardLimitMin * 1.1)) * 100)}%` }}
+                    title={`Hard limit: ${hardLimitMin} min`}
+                  />
+                )}
               </div>
+              {isSoftExceeded && usage.remainingSeconds > 0 && (
+                <div className="mt-2 flex items-center gap-3 flex-wrap">
+                  <p className="text-sm text-amber-600">{t('dashboard.softLimitExceeded', { percent: Math.round(usagePct) })}</p>
+                  {onNavigateToCheckout && (
+                    <button type="button" onClick={onNavigateToCheckout} className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                      {t('dashboard.upgradePlan')}
+                    </button>
+                  )}
+                </div>
+              )}
               {usage.remainingSeconds <= 0 && (
                 <div className="mt-2 flex items-center gap-3">
                   <p className="text-sm text-red-600">{t('nav.reachedLimit')}</p>
                   {onNavigateToCheckout ? (
-                    <button
-                      type="button"
-                      onClick={onNavigateToCheckout}
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-                    >
+                    <button type="button" onClick={onNavigateToCheckout} className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
                       {t('dashboard.upgradePlan')}
                     </button>
                   ) : (
-                    <a
-                      href="/#pricing"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-                    >
+                    <a href="/#pricing" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
                       {t('dashboard.upgradePlan')}
                     </a>
                   )}
                 </div>
               )}
-              {usage.remainingSeconds > 0 && isNearLimit && (
+              {usage.remainingSeconds > 0 && !isSoftExceeded && isNearLimit && (
                 <div className="mt-2 flex items-center gap-3 flex-wrap">
-                  <p className="text-sm text-amber-600">{t('nav.nearingLimit')}</p>
+                  <p className="text-sm text-amber-600">
+                    {isCritical ? t('dashboard.criticalUsage', { percent: Math.round(usagePct) }) : t('nav.nearingLimit')}
+                  </p>
                   {onNavigateToCheckout ? (
-                    <button
-                      type="button"
-                      onClick={onNavigateToCheckout}
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-                    >
+                    <button type="button" onClick={onNavigateToCheckout} className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
                       {t('dashboard.upgradePlan')}
                     </button>
                   ) : (
-                    <a
-                      href="/#pricing"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-                    >
+                    <a href="/#pricing" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
                       {t('dashboard.upgradePlan')}
                     </a>
                   )}
@@ -418,7 +444,17 @@ export default function DashboardView({
             </>
           )}
           {isAdminUnlimited && (
-            <p className="text-sm text-slate-500 mt-1">{t('dashboard.adminsUnlimitedRecording')}</p>
+            <div className="mt-1 space-y-1">
+              <p className="text-sm text-slate-500">{t('dashboard.adminsUnlimitedRecording')}</p>
+              {usage && usage.usedSeconds > 0 && (
+                <p className="text-xs text-slate-400">{t('dashboard.adminActualUsage', { minutes: Math.ceil(usage.usedSeconds / 60) })}</p>
+              )}
+            </div>
+          )}
+          {!isAdminUnlimited && daysUntilExpiry != null && daysUntilExpiry <= 7 && daysUntilExpiry > 0 && (
+            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-700">{t('dashboard.planExpiresIn', { days: daysUntilExpiry })}</p>
+            </div>
           )}
         </div>
       )}

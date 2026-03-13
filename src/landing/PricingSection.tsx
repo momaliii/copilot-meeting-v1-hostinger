@@ -10,6 +10,7 @@ type PricingSectionProps = {
 export default function PricingSection({ onGetStarted, onSelectPlan }: PricingSectionProps) {
   const { t } = useTranslation();
   const [plans, setPlans] = useState<any[]>([]);
+  const [featureLabels, setFeatureLabels] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -18,12 +19,29 @@ export default function PricingSection({ onGetStarted, onSelectPlan }: PricingSe
     const fetchPlans = async () => {
       try {
         setError(false);
-        const res = await fetch('/api/public/plans', { signal: controller.signal });
-        if (res.ok) {
-          const data = await res.json();
-          setPlans(Array.isArray(data) ? data : []);
+        // Try feature matrix API first, fallback to legacy
+        const featRes = await fetch('/api/public/plans/features', { signal: controller.signal });
+        if (featRes.ok) {
+          const data = await featRes.json();
+          setPlans(data.plans || []);
+          setFeatureLabels(data.featureLabels || {});
         } else {
-          setError(true);
+          const res = await fetch('/api/public/plans', { signal: controller.signal });
+          if (res.ok) {
+            const data = await res.json();
+            setPlans((Array.isArray(data) ? data : []).map((p: any) => ({
+              id: p.id, name: p.name, price: p.price,
+              features: {
+                minutesLimit: p.minutes_limit,
+                languageChanges: p.language_changes_limit ?? -1,
+                videoCaption: !!(p.video_caption),
+                cloudSave: !!(p.cloud_save),
+                proAnalysis: !!(p.pro_analysis_enabled),
+              },
+            })));
+          } else {
+            setError(true);
+          }
         }
       } catch (err: any) {
         if (err.name !== 'AbortError') {
@@ -105,7 +123,14 @@ export default function PricingSection({ onGetStarted, onSelectPlan }: PricingSe
             className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto"
           >
             {plans.map((plan, index) => {
-              const isPopular = index === 1; // Assuming second plan is most popular
+              const isPopular = index === 1;
+              const feat = plan.features || {};
+              const minutesLimit = feat.minutesLimit ?? plan.minutes_limit ?? 0;
+              const hasVideo = feat.videoCaption ?? !!(plan.video_caption);
+              const hasCloudSave = feat.cloudSave ?? !!(plan.cloud_save);
+              const hasProAnalysis = feat.proAnalysis ?? !!(plan.pro_analysis_enabled);
+              const langChanges = feat.languageChanges ?? plan.language_changes_limit ?? -1;
+
               return (
                 <motion.div 
                   key={plan.id} 
@@ -126,25 +151,35 @@ export default function PricingSection({ onGetStarted, onSelectPlan }: PricingSe
                   <ul className={`space-y-4 mb-8 flex-1 ${isPopular ? 'text-slate-300' : 'text-slate-600'}`}>
                     <li className="flex items-start gap-3">
                       <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isPopular ? 'bg-indigo-400' : 'bg-indigo-500'}`}></div>
-                      <span>{t('landing.pricing.monthlyMinutes', { count: plan.minutes_limit })}</span>
+                      <span>{t('landing.pricing.monthlyMinutes', { count: minutesLimit })}</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isPopular ? 'bg-indigo-400' : 'bg-indigo-500'}`}></div>
                       <span>{t('landing.pricing.transcriptsSummary')}</span>
                     </li>
-                    {plan.id === 'pro_video' && (
+                    {hasVideo && (
                       <li className="flex items-start gap-3">
                         <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isPopular ? 'bg-indigo-400' : 'bg-indigo-500'}`}></div>
                         <span>{t('landing.pricing.videoCaption')}</span>
                       </li>
                     )}
-                    {isPopular && (
-                      <>
-                        <li className="flex items-start gap-3">
-                          <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isPopular ? 'bg-indigo-400' : 'bg-indigo-500'}`}></div>
-                          <span>{t('landing.pricing.advancedInsights')}</span>
-                        </li>
-                      </>
+                    {hasCloudSave && (
+                      <li className="flex items-start gap-3">
+                        <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isPopular ? 'bg-indigo-400' : 'bg-indigo-500'}`}></div>
+                        <span>{featureLabels.cloudSave || 'Cloud Save'}</span>
+                      </li>
+                    )}
+                    {hasProAnalysis && (
+                      <li className="flex items-start gap-3">
+                        <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isPopular ? 'bg-indigo-400' : 'bg-indigo-500'}`}></div>
+                        <span>{t('landing.pricing.advancedInsights')}</span>
+                      </li>
+                    )}
+                    {langChanges === -1 && (
+                      <li className="flex items-start gap-3">
+                        <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${isPopular ? 'bg-indigo-400' : 'bg-indigo-500'}`}></div>
+                        <span>{featureLabels.languageChanges ? `${featureLabels.languageChanges}: Unlimited` : 'Unlimited Translations'}</span>
+                      </li>
                     )}
                   </ul>
                   <button 

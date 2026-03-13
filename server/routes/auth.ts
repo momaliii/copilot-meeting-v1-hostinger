@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { JWT_SECRET } from '../middleware/auth.ts';
 import { getAdminPermissions } from '../permissions.ts';
 import { isAccountLocked, recordLoginAttempt, logSecurityEvent, getClientIP } from '../middleware/security.ts';
+import { getUserEffectivePlan } from '../utils/planLimits.ts';
 
 const router = Router();
 
@@ -50,20 +51,17 @@ const defaultPlanFeatures = { video_caption: false, cloud_save: false, pro_analy
 
 async function enrichUserWithPlanFeatures(user: any): Promise<any> {
   if (!user) return user;
-  if (user.role === 'admin') {
-    return { ...user, plan_features: { video_caption: true, cloud_save: true, pro_analysis_enabled: true } };
-  }
-  if (!user.plan_id) return { ...user, plan_features: defaultPlanFeatures };
   try {
-    const plan = await db.queryOne('SELECT video_caption, cloud_save, pro_analysis_enabled FROM plans WHERE id = ?', [user.plan_id]);
-    const plan_features = plan
-      ? {
-          video_caption: !!(plan.video_caption === true || plan.video_caption === 1),
-          cloud_save: !!(plan.cloud_save === true || plan.cloud_save === 1),
-          pro_analysis_enabled: !!(plan.pro_analysis_enabled === true || plan.pro_analysis_enabled === 1),
-        }
-      : defaultPlanFeatures;
-    return { ...user, plan_features };
+    const effective = await getUserEffectivePlan(user.id);
+    if (!effective) return { ...user, plan_features: defaultPlanFeatures };
+    return {
+      ...user,
+      plan_features: {
+        video_caption: effective.hasVideoCaption,
+        cloud_save: effective.hasCloudSave,
+        pro_analysis_enabled: effective.hasProAnalysis,
+      },
+    };
   } catch (e) {
     console.error('[auth] enrichUserWithPlanFeatures failed (migrations may be missing):', e);
     return { ...user, plan_features: defaultPlanFeatures };

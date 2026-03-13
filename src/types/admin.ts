@@ -9,6 +9,8 @@ export type Plan = {
   pro_analysis_enabled?: boolean | number;
   analysis_model?: string;
   transcript_model?: string;
+  soft_limit_percent?: number;
+  hard_limit_percent?: number;
   user_count?: number;
 };
 

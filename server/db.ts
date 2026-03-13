@@ -335,6 +335,33 @@ function runSqliteSchema(): void {
     db.exec(`ALTER TABLE plans ADD COLUMN transcript_model TEXT DEFAULT 'gemini-2.5-flash'`);
   } catch (_) {}
   try {
+    db.exec(`ALTER TABLE plans ADD COLUMN soft_limit_percent INTEGER DEFAULT 100`);
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE plans ADD COLUMN hard_limit_percent INTEGER DEFAULT 100`);
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN language_changes_override INTEGER`);
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN video_caption_override INTEGER`);
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN cloud_save_override INTEGER`);
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN pro_analysis_override INTEGER`);
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN plan_expires_at TEXT`);
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN plan_started_at TEXT`);
+  } catch (_) {}
+  try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_users_plan_expires ON users(plan_expires_at)`);
+  } catch (_) {}
+  try {
     db.exec(`ALTER TABLE meetings ADD COLUMN media_path TEXT`);
   } catch (_) {}
   try {
@@ -409,21 +436,32 @@ function runSqliteSchema(): void {
     db.prepare('UPDATE plans SET video_caption = 0, cloud_save = 0, pro_analysis_enabled = 0 WHERE id = ?').run('starter');
   } catch (_) {}
 
+  // Seed admin plan
+  try {
+    db.prepare('INSERT INTO plans (id, name, price, minutes_limit, language_changes_limit, video_caption, cloud_save, pro_analysis_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run('admin', 'Admin (Unlimited)', 0, 999999, -1, 1, 1, 1);
+  } catch (_) {
+    db.prepare('UPDATE plans SET name = ?, price = ?, minutes_limit = ?, language_changes_limit = ?, video_caption = ?, cloud_save = ?, pro_analysis_enabled = ? WHERE id = ?').run('Admin (Unlimited)', 0, 999999, -1, 1, 1, 1, 'admin');
+  }
+
   const adminCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get() as { count: number };
   if (adminCount.count === 0) {
     const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || crypto.randomUUID().slice(0, 16);
     const hash = bcrypt.hashSync(adminPassword, 10);
-    db.prepare('INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)').run('admin-1', 'admin@meetingcopilot.app', hash, '', 'admin');
+    db.prepare('INSERT INTO users (id, email, password, name, role, plan_id) VALUES (?, ?, ?, ?, ?, ?)').run('admin-1', 'admin@meetingcopilot.app', hash, '', 'admin', 'admin');
     if (!process.env.ADMIN_DEFAULT_PASSWORD) {
       console.warn(`[SECURITY] Default admin account created. Email: admin@meetingcopilot.app Password: ${adminPassword}`);
       console.warn('[SECURITY] Change this password immediately and set ADMIN_DEFAULT_PASSWORD env var for future deployments.');
     }
   }
+  // Ensure existing admin users have the admin plan
+  try {
+    db.prepare("UPDATE users SET plan_id = 'admin' WHERE role = 'admin' AND plan_id != 'admin'").run();
+  } catch (_) {}
 }
 
 async function runPostgresSchema(): Promise<void> {
   if (!pgPool) return;
-  const migrations = ['001_initial_postgres.sql', '002_phase2.sql', '003_support_chat.sql', '004_support_attachments.sql', '005_support_admin.sql', '006_language_changes_limit.sql', '007_announcements_enhancements.sql', '008_support_notes_tags.sql', '009_avatar.sql', '010_email_verification.sql', '011_twofa.sql', '012_announcement_show_on.sql', '013_redirect_rules.sql', '014_signup_fields.sql', '015_promo_codes.sql', '016_contact_submissions.sql', '017_promo_per_user.sql', '018_session_replay.sql', '019_pro_video_plan.sql', '020_plan_features_and_model.sql', '021_transcript_model.sql', '022_tour_events.sql', '023_meetings_media.sql', '024_security_tables.sql'];
+  const migrations = ['001_initial_postgres.sql', '002_phase2.sql', '003_support_chat.sql', '004_support_attachments.sql', '005_support_admin.sql', '006_language_changes_limit.sql', '007_announcements_enhancements.sql', '008_support_notes_tags.sql', '009_avatar.sql', '010_email_verification.sql', '011_twofa.sql', '012_announcement_show_on.sql', '013_redirect_rules.sql', '014_signup_fields.sql', '015_promo_codes.sql', '016_contact_submissions.sql', '017_promo_per_user.sql', '018_session_replay.sql', '019_pro_video_plan.sql', '020_plan_features_and_model.sql', '021_transcript_model.sql', '022_tour_events.sql', '023_meetings_media.sql', '024_security_tables.sql', '025_admin_plan.sql', '026_per_user_overrides.sql', '027_plan_expiration.sql', '028_soft_limits.sql'];
   const migrationsDir = existsSync(join(__dirname, 'migrations'))
     ? join(__dirname, 'migrations')
     : join(process.cwd(), 'server', 'migrations');
@@ -465,14 +503,51 @@ async function runPostgresSchema(): Promise<void> {
     const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || crypto.randomUUID().slice(0, 16);
     const hash = await bcrypt.hash(adminPassword, 10);
     await pgPool.query(
-      `INSERT INTO users (id, email, password, name, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING`,
-      ['admin-1', 'admin@meetingcopilot.app', hash, '', 'admin']
+      `INSERT INTO users (id, email, password, name, role, plan_id) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
+      ['admin-1', 'admin@meetingcopilot.app', hash, '', 'admin', 'admin']
     );
     if (!process.env.ADMIN_DEFAULT_PASSWORD) {
       console.warn(`[SECURITY] Default admin account created. Email: admin@meetingcopilot.app Password: ${adminPassword}`);
       console.warn('[SECURITY] Change this password immediately and set ADMIN_DEFAULT_PASSWORD env var for future deployments.');
     }
   }
+  // Ensure existing admin users have the admin plan
+  try {
+    await pgPool.query("UPDATE users SET plan_id = 'admin' WHERE role = 'admin' AND plan_id != 'admin'");
+  } catch (_) {}
+}
+
+// Plan expiration scheduler: downgrade expired plans to starter
+export async function downgradeExpiredPlans(): Promise<number> {
+  const now = new Date().toISOString();
+  if (USE_SQLITE && sqliteDb) {
+    const result = sqliteDb.prepare(
+      "UPDATE users SET plan_id = 'starter', plan_expires_at = NULL WHERE plan_expires_at IS NOT NULL AND plan_expires_at < ? AND role != 'admin'"
+    ).run(now);
+    return result.changes;
+  }
+  if (pgPool) {
+    const result = await pgPool.query(
+      "UPDATE users SET plan_id = 'starter', plan_expires_at = NULL WHERE plan_expires_at IS NOT NULL AND plan_expires_at < $1 AND role != 'admin'",
+      [now]
+    );
+    return result.rowCount ?? 0;
+  }
+  return 0;
+}
+
+let expirationInterval: ReturnType<typeof setInterval> | null = null;
+
+export function startPlanExpirationScheduler(): void {
+  if (expirationInterval) return;
+  expirationInterval = setInterval(async () => {
+    try {
+      const count = await downgradeExpiredPlans();
+      if (count > 0) console.log(`[Plan Expiration] Downgraded ${count} expired plan(s) to starter`);
+    } catch (err) {
+      console.error('[Plan Expiration] Error:', err);
+    }
+  }, 60 * 60 * 1000); // Every hour
 }
 
 // Unified async query interface

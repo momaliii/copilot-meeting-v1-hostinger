@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import db, { USAGE_TABLE, sqlCurrentMonth, sqlDateFilter, sqlDateColumn, isPostgres } from '../db.ts';
+import { getUserEffectivePlan } from '../utils/planLimits.ts';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import { z } from 'zod';
@@ -125,7 +126,15 @@ router.post('/checkout', async (req: any, res) => {
       }
     }
 
-    await db.run('UPDATE users SET plan_id = ? WHERE id = ?', [finalPlanId, user.id]);
+    // Set plan expiration if promo has plan_months
+    const planMonths = promoRow?.type === 'plan_time' && promoRow?.plan_months ? Number(promoRow.plan_months) : 0;
+    if (planMonths > 0) {
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + planMonths);
+      await db.run('UPDATE users SET plan_id = ?, plan_started_at = ?, plan_expires_at = ? WHERE id = ?', [finalPlanId, new Date().toISOString(), expiresAt.toISOString(), user.id]);
+    } else {
+      await db.run('UPDATE users SET plan_id = ?, plan_started_at = ? WHERE id = ?', [finalPlanId, new Date().toISOString(), user.id]);
+    }
 
     if (promoRow) {
       await db.run('UPDATE promo_codes SET uses_count = COALESCE(uses_count, 0) + 1, updated_at = ? WHERE id = ?', [new Date().toISOString(), promoRow.id]);
@@ -169,10 +178,9 @@ router.put('/preferences', async (req: any, res) => {
       sessionReplayConsent: z.boolean().optional(),
     });
     const body = schema.parse(req.body);
-    const row = await db.queryOne('SELECT plan_id, role FROM users WHERE id = ?', [user.id]);
-    if (!row) return res.status(404).json({ error: 'User not found' });
-    const plan = row.plan_id ? await db.queryOne('SELECT cloud_save FROM plans WHERE id = ?', [row.plan_id]) : null;
-    const hasCloudSave = row.role === 'admin' || !!(plan?.cloud_save === true || plan?.cloud_save === 1);
+    const effective = await getUserEffectivePlan(user.id);
+    if (!effective) return res.status(404).json({ error: 'User not found' });
+    const hasCloudSave = effective.hasCloudSave;
     const updates: { cloudSaveEnabled?: boolean; sessionReplayConsent?: boolean } = {};
     if (body.cloudSaveEnabled !== undefined) {
       if (body.cloudSaveEnabled && !hasCloudSave) {
@@ -222,24 +230,8 @@ router.post('/tour-event', async (req: any, res) => {
 router.get('/usage', async (req: any, res) => {
   try {
     const user = req.user;
-    const userRow = await db.queryOne('SELECT plan_id, extra_minutes_override, role FROM users WHERE id = ?', [user.id]);
-    if (!userRow) return res.status(404).json({ error: 'User not found' });
-
-    if (userRow.role === 'admin') {
-      return res.json({
-        usedSeconds: 0,
-        limitMinutes: 10000,
-        limitSeconds: 600000,
-        remainingSeconds: 600000,
-        languageChangesLimit: -1,
-      });
-    }
-
-    const plan = await db.queryOne('SELECT minutes_limit, language_changes_limit FROM plans WHERE id = ?', [userRow.plan_id]);
-    const baseLimit = plan ? plan.minutes_limit : 60;
-    const extraOverride = Number(userRow.extra_minutes_override ?? 0) || 0;
-    const limitMinutes = baseLimit + extraOverride;
-    const languageChangesLimit = plan?.language_changes_limit != null ? Number(plan.language_changes_limit) : -1;
+    const effective = await getUserEffectivePlan(user.id);
+    if (!effective) return res.status(404).json({ error: 'User not found' });
 
     const monthFilter = sqlCurrentMonth('date');
     const usageRow = await db.queryOne(
@@ -248,12 +240,28 @@ router.get('/usage', async (req: any, res) => {
     );
     const usedSeconds = Number(usageRow?.total_seconds ?? 0);
 
+    const limitMinutes = effective.totalMinutesLimit;
+    const hardLimitMinutes = effective.hardLimitMinutes;
+    const softLimitMinutes = effective.softLimitMinutes;
+    const remainingSeconds = effective.isUnlimited
+      ? 999999 * 60
+      : Math.max(0, hardLimitMinutes * 60 - usedSeconds);
+
+    // Fetch plan expiration
+    const userRow = await db.queryOne('SELECT plan_expires_at FROM users WHERE id = ?', [user.id]);
+
     res.json({
       usedSeconds,
       limitMinutes,
       limitSeconds: limitMinutes * 60,
-      remainingSeconds: Math.max(0, limitMinutes * 60 - usedSeconds),
-      languageChangesLimit,
+      remainingSeconds,
+      languageChangesLimit: effective.languageChangesLimit,
+      isUnlimited: effective.isUnlimited,
+      softLimitMinutes,
+      softLimitSeconds: softLimitMinutes * 60,
+      hardLimitMinutes,
+      hardLimitSeconds: hardLimitMinutes * 60,
+      planExpiresAt: userRow?.plan_expires_at || null,
     });
   } catch (err) {
     console.error(err);

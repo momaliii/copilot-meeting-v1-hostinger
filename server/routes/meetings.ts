@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
 import db from '../db.ts';
 import { authenticateToken } from '../middleware/auth.ts';
+import { getUserEffectivePlan } from '../utils/planLimits.ts';
 import { z } from 'zod';
 import crypto from 'crypto';
 import multer from 'multer';
@@ -32,12 +33,10 @@ const mediaUpload = multer({
 const router = Router();
 
 async function assertProAndCloudSave(userId: string): Promise<void> {
-  const row = await db.queryOne('SELECT plan_id, cloud_save_enabled, role FROM users WHERE id = ?', [userId]);
-  if (!row) throw new Error('User not found');
-  if (row.role === 'admin' && row.cloud_save_enabled) return;
-  const plan = row.plan_id ? await db.queryOne('SELECT cloud_save FROM plans WHERE id = ?', [row.plan_id]) : null;
-  const hasCloudSave = !!(plan?.cloud_save === true || plan?.cloud_save === 1);
-  if (!hasCloudSave || !row.cloud_save_enabled) {
+  const effective = await getUserEffectivePlan(userId);
+  if (!effective) throw new Error('User not found');
+  const row = await db.queryOne('SELECT cloud_save_enabled FROM users WHERE id = ?', [userId]);
+  if (!effective.hasCloudSave || !row?.cloud_save_enabled) {
     throw new Error('Cloud save requires a plan with cloud save and "Save to cloud" enabled');
   }
 }

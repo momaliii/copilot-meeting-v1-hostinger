@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { GoogleGenAI, Type } from '@google/genai';
 import { authenticateToken } from '../middleware/auth.ts';
 import db from '../db.ts';
+import { getUserEffectivePlan } from '../utils/planLimits.ts';
 import multer from 'multer';
 
 const router = Router();
@@ -221,14 +222,11 @@ router.post('/', upload.single('audio'), async (req: any, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No audio file provided' });
 
-    const userRow = await db.queryOne('SELECT plan_id, role FROM users WHERE id = ?', [req.user.id]);
-    const plan = userRow?.plan_id
-      ? await db.queryOne('SELECT video_caption, pro_analysis_enabled, analysis_model, transcript_model FROM plans WHERE id = ?', [userRow.plan_id])
-      : null;
-    const hasVideoAccess = userRow?.role === 'admin' || !!(plan?.video_caption === true || plan?.video_caption === 1);
-    const isPro = userRow?.role === 'admin' || !!(plan?.pro_analysis_enabled === true || plan?.pro_analysis_enabled === 1);
-    const analysisModel = plan?.analysis_model || 'gemini-2.5-flash';
-    const transcriptModel = plan?.transcript_model || 'gemini-2.5-flash';
+    const effective = await getUserEffectivePlan(req.user.id);
+    const hasVideoAccess = effective?.hasVideoCaption ?? false;
+    const isPro = effective?.hasProAnalysis ?? false;
+    const analysisModel = effective?.analysisModel || 'gemini-2.5-flash';
+    const transcriptModel = effective?.transcriptModel || 'gemini-2.5-flash';
 
     const isVideo = req.file.mimetype?.startsWith('video/') ?? false;
     if (isVideo && !hasVideoAccess) {

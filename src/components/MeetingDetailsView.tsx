@@ -52,6 +52,7 @@ type MeetingDetailsViewProps = {
   onFeedbackSubmit: () => void;
   onActionItemToggle?: (index: number, completed: boolean) => void;
   onSpeakerRename?: (original: string, newName: string) => void;
+  onTranscriptEdit?: (newTranscript: string) => void;
   onUpdateTitle?: (id: string, newTitle: string) => Promise<void>;
   scrollToLine?: number;
 };
@@ -85,6 +86,7 @@ export default function MeetingDetailsView({
   onFeedbackSubmit,
   onActionItemToggle,
   onSpeakerRename,
+  onTranscriptEdit,
   onUpdateTitle,
   scrollToLine,
 }: MeetingDetailsViewProps) {
@@ -469,6 +471,7 @@ export default function MeetingDetailsView({
         showBadges={true}
         onActionItemToggle={onActionItemToggle}
         onSpeakerRename={onSpeakerRename}
+        onTranscriptEdit={onTranscriptEdit}
         tabBarRef={tabBarRef}
         audioCurrentTime={audioCurrentTime}
         audioDuration={audioDuration}

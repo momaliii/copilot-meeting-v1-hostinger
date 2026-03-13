@@ -136,14 +136,19 @@ export default function AdminPlansView({
             <tbody className="divide-y divide-slate-200">
               {sortedPlans.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-mono text-xs">{p.id}</td>
+                  <td className="px-6 py-4 font-mono text-xs">
+                    {p.id}
+                    {p.id === 'admin' && (
+                      <span className="ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">SYSTEM</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 font-medium text-slate-900">{p.name}</td>
                   <td className="px-6 py-4">${p.price}</td>
                   <td className="px-6 py-4">{p.minutes_limit} {t('admin.mins')}</td>
                   <td className="px-6 py-4">{p.language_changes_limit === -1 || p.language_changes_limit == null ? t('admin.unlimited') : p.language_changes_limit}</td>
                   <td className="px-6 py-4 text-slate-500">{p.user_count ?? 0}</td>
                   <td className="px-6 py-4 text-end">
-                    {currentPermissions.managePlans && (
+                    {currentPermissions.managePlans && p.id !== 'admin' && (
                         <div className="flex items-center justify-end gap-1 rtl:flex-row-reverse">
                         <button
                           onClick={() => onEditPlan(p)}
@@ -168,6 +173,9 @@ export default function AdminPlansView({
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                    )}
+                    {p.id === 'admin' && (
+                      <span className="text-xs text-slate-400">{t('admin.systemPlan')}</span>
                     )}
                   </td>
                 </tr>

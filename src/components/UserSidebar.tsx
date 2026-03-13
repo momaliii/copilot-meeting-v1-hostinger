@@ -8,6 +8,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
@@ -149,14 +150,21 @@ export default function UserSidebar({
         {usage && (
           <div className={`tour-monthly-usage mt-2 text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200 ${hiddenWhenCollapsed}`}>
             <div className="flex justify-between mb-1">
-              <span>{t('nav.monthlyUsage')}</span>
+              <span className="flex items-center gap-1">
+                {t('nav.monthlyUsage')}
+                {!((usage as any).isUnlimited || user?.role === 'admin') &&
+                  usage.remainingSeconds > 0 &&
+                  usage.usedSeconds / 60 >= usage.limitMinutes * 0.8 && (
+                    <AlertTriangle className="w-3 h-3 text-amber-500" />
+                  )}
+              </span>
               <span className="font-medium text-slate-700">
-                {user?.role === 'admin'
+                {(usage as any).isUnlimited || user?.role === 'admin'
                   ? t('nav.unlimited')
                   : t('nav.minUsed', { used: Math.ceil(usage.usedSeconds / 60), limit: usage.limitMinutes })}
               </span>
             </div>
-            {user?.role !== 'admin' && (
+            {!((usage as any).isUnlimited || user?.role === 'admin') && (
               <>
                 <div className="w-full bg-slate-200 rounded-full h-1.5">
                   <div
@@ -181,8 +189,13 @@ export default function UserSidebar({
                   )}
               </>
             )}
-            {user?.role === 'admin' && (
-              <p className="mt-1 text-slate-500">{t('nav.adminsUnlimited')}</p>
+            {((usage as any).isUnlimited || user?.role === 'admin') && (
+              <div>
+                <p className="mt-1 text-slate-500">{t('nav.adminsUnlimited')}</p>
+                {usage.usedSeconds > 0 && (
+                  <p className="mt-0.5 text-slate-400">{Math.ceil(usage.usedSeconds / 60)} min used this month</p>
+                )}
+              </div>
             )}
           </div>
         )}
