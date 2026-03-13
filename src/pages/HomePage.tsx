@@ -5,9 +5,14 @@ import PublicLayout from '../components/PublicLayout';
 import Hero from '../landing/Hero';
 import FeaturesSection from '../landing/FeaturesSection';
 import PricingSection from '../landing/PricingSection';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function HomePage({ onGetStarted, onSelectPlan }: { onGetStarted: () => void; onSelectPlan?: (planId: string) => void }) {
   const { t } = useTranslation();
+  usePageMeta(
+    'Meeting Copilot — AI Meeting Notes, Transcripts & Action Items',
+    'Record, transcribe, and analyze meetings with AI. Get summaries, action items, and follow-up emails. Start free.'
+  );
 
   const handleNav = (path: string) => () => {
     window.history.pushState({}, '', path);

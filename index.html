@@ -4,11 +4,137 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#4f46e5" />
-    <meta name="description" content="Record, transcribe, and analyze meetings with AI" />
-    <title>Meeting Copilot</title>
+    <meta name="robots" content="index, follow" />
+    <meta name="description" content="Record, transcribe, and analyze meetings with AI. Get summaries, action items, and follow-up emails. Powered by Gemini. Start free." />
+    <meta name="keywords" content="meeting notes, AI transcription, meeting summary, action items, Google Meet, Zoom, meeting recorder, speech to text, meeting minutes, AI meeting assistant" />
+    <title>Meeting Copilot — AI Meeting Notes, Transcripts & Action Items</title>
+    <link rel="canonical" href="https://darkgrey-sheep-352442.hostingersite.com/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Meeting Copilot" />
+    <meta property="og:title" content="Meeting Copilot — AI Meeting Notes, Transcripts & Action Items" />
+    <meta property="og:description" content="Record, transcribe, and analyze meetings with AI. Get summaries, action items, and follow-up emails. Start free." />
+    <meta property="og:url" content="https://darkgrey-sheep-352442.hostingersite.com/" />
+    <meta property="og:image" content="https://darkgrey-sheep-352442.hostingersite.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Meeting Copilot — AI Meeting Notes, Transcripts & Action Items" />
+    <meta name="twitter:description" content="Record, transcribe, and analyze meetings with AI. Get summaries, action items, and follow-up emails. Start free." />
+    <meta name="twitter:image" content="https://darkgrey-sheep-352442.hostingersite.com/og-image.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Meeting Copilot",
+        "url": "https://darkgrey-sheep-352442.hostingersite.com",
+        "description": "Record, transcribe, and analyze meetings with AI. Get transcripts, summaries, action items, decisions, and follow-up emails.",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Starter",
+            "price": "0",
+            "priceCurrency": "USD",
+            "description": "60 minutes/month. Transcripts, summary, action items. 2 translations per meeting."
+          },
+          {
+            "@type": "Offer",
+            "name": "Pro",
+            "price": "15",
+            "priceCurrency": "USD",
+            "billingIncrement": "month",
+            "description": "600 minutes/month. Cloud save, Pro analysis, unlimited translations."
+          },
+          {
+            "@type": "Offer",
+            "name": "Pro Video",
+            "price": "29",
+            "priceCurrency": "USD",
+            "billingIncrement": "month",
+            "description": "600 minutes/month. Video caption, screen recording analysis, all Pro features."
+          }
+        ]
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Meeting Copilot",
+        "url": "https://darkgrey-sheep-352442.hostingersite.com",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "email": "hello@meetingcopilot.app",
+          "contactType": "customer support"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Does Meeting Copilot record my screen?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. When you record tab audio, the app requests tab capture to access the audio track, then immediately stops the video track."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "When is my audio uploaded?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Only when you click Analyze (and confirm consent). Recording alone does not upload anything."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Where is meeting history stored?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "You can keep history locally in your browser. If you sign in, meeting artifacts can sync to your workspace for access across devices."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use Meeting Copilot with Google Meet?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. You can record tab audio from Meet, and optionally open the app via the companion Chrome extension."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What are the limits?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Plans enforce monthly minutes quotas. You can start free and upgrade in-app when you need more."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can it attach notes to my calendar?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. When connected to Google Calendar, you can attach a meeting summary to an event with one click."
+            }
+          }
+        ]
+      }
+    ]
+    </script>
   </head>
   <body>
     <div id="root"></div>

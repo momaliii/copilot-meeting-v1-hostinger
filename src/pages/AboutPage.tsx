@@ -1,9 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { Mic, Users, Target, Zap } from 'lucide-react';
 import PublicLayout from '../components/PublicLayout';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function AboutPage() {
   const { t } = useTranslation();
+  usePageMeta(
+    'About — Meeting Copilot',
+    'Learn about Meeting Copilot, the AI-powered meeting assistant for transcription, summaries, and action items.'
+  );
 
   return (
     <PublicLayout>

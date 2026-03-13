@@ -2,9 +2,14 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send, Loader2 } from 'lucide-react';
 import PublicLayout from '../components/PublicLayout';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function ContactPage() {
   const { t } = useTranslation();
+  usePageMeta(
+    'Contact — Meeting Copilot',
+    'Get in touch with the Meeting Copilot team for questions, feedback, or support.'
+  );
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('');

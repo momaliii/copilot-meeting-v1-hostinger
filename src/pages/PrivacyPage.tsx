@@ -1,8 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import PublicLayout from '../components/PublicLayout';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function PrivacyPage() {
   const { t } = useTranslation();
+  usePageMeta(
+    'Privacy Policy — Meeting Copilot',
+    'How Meeting Copilot handles your data and privacy. Audio is never uploaded without your explicit consent.'
+  );
 
   return (
     <PublicLayout>

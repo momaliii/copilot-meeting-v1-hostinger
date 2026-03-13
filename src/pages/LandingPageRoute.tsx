@@ -10,9 +10,14 @@ import PrivacySection from '../landing/PrivacySection';
 import PricingSection from '../landing/PricingSection';
 import FAQ from '../landing/FAQ';
 import Footer from '../landing/Footer';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function LandingPageRoute({ onGetStarted, onSelectPlan }: { onGetStarted: () => void; onSelectPlan?: (planId: string) => void }) {
   const { t } = useTranslation();
+  usePageMeta(
+    'Meeting Copilot — AI Meeting Notes, Transcripts & Action Items',
+    'Turn every meeting into clear next steps. AI-powered transcription, summaries, and action items. Start free.'
+  );
   return (
     <div className="min-h-screen bg-slate-50 font-body selection:bg-indigo-100 selection:text-indigo-900 relative overflow-hidden">
       <div className="fixed inset-0 pointer-events-none -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.15),transparent)]" aria-hidden="true" />

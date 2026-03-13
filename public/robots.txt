@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /login
+Disallow: /signup
+Disallow: /checkout
+
+Sitemap: https://darkgrey-sheep-352442.hostingersite.com/sitemap.xml

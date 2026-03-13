@@ -1,8 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import PublicLayout from '../components/PublicLayout';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function TermsPage() {
   const { t } = useTranslation();
+  usePageMeta(
+    'Terms of Service — Meeting Copilot',
+    'Terms and conditions for using Meeting Copilot, the AI meeting assistant.'
+  );
 
   return (
     <PublicLayout>

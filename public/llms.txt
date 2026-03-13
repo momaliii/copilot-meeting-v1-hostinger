@@ -1,0 +1,78 @@
+# Meeting Copilot
+
+> AI-powered meeting assistant that records, transcribes, and analyzes meetings.
+
+## What is Meeting Copilot?
+
+Meeting Copilot is a web application that helps professionals capture and act on meeting content. It records audio from your microphone, browser tab (e.g. Google Meet, Zoom), or both, then uses AI (Google Gemini 2.5 Flash) to produce:
+
+- Full transcript with speaker separation
+- Concise meeting summary
+- Action items with owners and deadlines
+- Key decisions made
+- Sentiment analysis
+- Ready-to-send follow-up email
+
+Audio is only uploaded when the user explicitly clicks "Analyze" and confirms consent. Recording alone keeps everything local.
+
+## Key Features
+
+- **Capture any source**: Microphone, meeting tab (Google Meet, Zoom, Teams), or both simultaneously
+- **Speaker-aware transcript**: Speakers are identified and separated in the transcript
+- **AI analysis**: Summary, action items, decisions, sentiment — powered by Gemini 2.5 Flash
+- **Multi-language output**: Get meeting notes in your preferred language
+- **Cloud save**: Sync meetings across devices (Pro plans)
+- **Share meeting notes**: Generate shareable links for team members
+- **Chrome extension**: Quick access from any browser tab
+- **Calendar attachment**: Attach summaries to Google Calendar events
+- **Consent-first privacy**: Audio is never uploaded without explicit user consent
+
+## Pricing
+
+| Plan       | Price    | Minutes/Month | Key Features                                                  |
+|------------|----------|---------------|---------------------------------------------------------------|
+| Starter    | Free     | 60            | Transcripts, summary, action items, 2 translations/meeting   |
+| Pro        | $15/mo   | 600           | Cloud save, Pro analysis, unlimited translations              |
+| Pro Video  | $29/mo   | 600           | Video caption, screen recording analysis, all Pro features    |
+
+Yearly billing available at ~17% discount. 30-day money-back guarantee on all paid plans.
+
+## How It Works
+
+1. **Record**: Click record to capture audio from your mic, meeting tab, or both
+2. **Analyze**: When the meeting ends, click Analyze to send audio to AI for processing
+3. **Act**: Get your transcript, summary, action items, and share with your team
+
+## Frequently Asked Questions
+
+**Does it record my screen?**
+No. Tab capture is used for audio only; the video track is immediately stopped.
+
+**When is my audio uploaded?**
+Only when you click Analyze and confirm consent. Recording alone does not upload anything.
+
+**Where is meeting history stored?**
+Locally in your browser by default. If signed in with a Pro plan, meetings sync to the cloud.
+
+**Can I use it with Google Meet?**
+Yes. Record tab audio from Meet directly, or use the companion Chrome extension.
+
+**What are the limits?**
+Monthly minutes quotas based on your plan. Start free with 60 minutes/month.
+
+**Can it attach notes to my calendar?**
+Yes. Connect Google Calendar and attach a meeting summary to an event with one click.
+
+## Links
+
+- Homepage: https://darkgrey-sheep-352442.hostingersite.com/
+- Landing Page: https://darkgrey-sheep-352442.hostingersite.com/landing
+- Pricing: https://darkgrey-sheep-352442.hostingersite.com/pricing
+- About: https://darkgrey-sheep-352442.hostingersite.com/about
+- Contact: https://darkgrey-sheep-352442.hostingersite.com/contact
+- Privacy Policy: https://darkgrey-sheep-352442.hostingersite.com/privacy
+- Terms of Service: https://darkgrey-sheep-352442.hostingersite.com/terms
+
+## Contact
+
+Email: hello@meetingcopilot.app

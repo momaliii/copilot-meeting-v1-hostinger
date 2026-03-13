@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import http from 'http';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import express from 'express';
 import { Server as SocketServer } from 'socket.io';
 import jwt from 'jsonwebtoken';
@@ -392,8 +394,35 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     app.use(express.static('dist'));
+
+    const PAGE_META: Record<string, { title: string; description: string }> = {
+      '/': { title: 'Meeting Copilot — AI Meeting Notes, Transcripts & Action Items', description: 'Record, transcribe, and analyze meetings with AI. Get summaries, action items, and follow-up emails. Start free.' },
+      '/landing': { title: 'Meeting Copilot — AI Meeting Notes, Transcripts & Action Items', description: 'Turn every meeting into clear next steps. AI-powered transcription, summaries, and action items. Start free.' },
+      '/pricing': { title: 'Pricing — Meeting Copilot', description: 'Free and Pro plans for AI meeting transcription. Start free, upgrade for cloud save and advanced analysis.' },
+      '/about': { title: 'About — Meeting Copilot', description: 'Learn about Meeting Copilot, the AI-powered meeting assistant for transcription, summaries, and action items.' },
+      '/contact': { title: 'Contact — Meeting Copilot', description: 'Get in touch with the Meeting Copilot team for questions, feedback, or support.' },
+      '/privacy': { title: 'Privacy Policy — Meeting Copilot', description: 'How Meeting Copilot handles your data and privacy. Audio is never uploaded without your explicit consent.' },
+      '/terms': { title: 'Terms of Service — Meeting Copilot', description: 'Terms and conditions for using Meeting Copilot, the AI meeting assistant.' },
+    };
+
+    let indexHtml = '';
+    try { indexHtml = readFileSync(join('dist', 'index.html'), 'utf-8'); } catch (_) {}
+
     app.get('*', (req, res) => {
-      res.sendFile('index.html', { root: 'dist' });
+      const meta = PAGE_META[req.path] || PAGE_META['/'];
+      if (indexHtml && meta) {
+        const html = indexHtml
+          .replace(/<title>[^<]*<\/title>/, `<title>${meta.title}</title>`)
+          .replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${meta.description}"`)
+          .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${meta.title}"`)
+          .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${meta.description}"`)
+          .replace(/<meta name="twitter:title" content="[^"]*"/, `<meta name="twitter:title" content="${meta.title}"`)
+          .replace(/<meta name="twitter:description" content="[^"]*"/, `<meta name="twitter:description" content="${meta.description}"`);
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+      } else {
+        res.sendFile('index.html', { root: 'dist' });
+      }
     });
   }
 
