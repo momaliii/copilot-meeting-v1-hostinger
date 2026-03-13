@@ -11,6 +11,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import type { TFunction } from 'i18next';
+import { useBranding } from '../contexts/BrandingContext';
 
 export type UserSidebarView = 'dashboard' | 'record' | 'history' | 'support' | 'profile';
 
@@ -57,6 +58,7 @@ export default function UserSidebar({
   onBackToAdmin,
   t,
 }: UserSidebarProps) {
+  const { siteName, logoUrl } = useBranding();
   const isDashboard = activeView === 'dashboard';
   const isRecord = activeView === 'record';
   const isHistory = activeView === 'history';
@@ -76,11 +78,15 @@ export default function UserSidebar({
       } ${isVisible ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'} md:translate-x-0`}
     >
       <div className="h-16 px-4 border-b border-slate-200 flex items-center gap-2 shrink-0">
-        <div className="bg-indigo-600 p-1.5 rounded-lg flex-shrink-0">
-          <Mic className="w-4 h-4 text-white" />
-        </div>
+        {logoUrl ? (
+          <img src={logoUrl} alt={siteName} className="w-7 h-7 rounded-lg object-contain flex-shrink-0" />
+        ) : (
+          <div className="bg-indigo-600 p-1.5 rounded-lg flex-shrink-0">
+            <Mic className="w-4 h-4 text-white" />
+          </div>
+        )}
         <div className={`flex-1 min-w-0 ${hiddenWhenCollapsed}`}>
-          <h1 className="font-semibold tracking-tight text-slate-900 truncate">Meeting Copilot</h1>
+          <h1 className="font-semibold tracking-tight text-slate-900 truncate">{siteName}</h1>
         </div>
         <button
           onClick={onCloseMobile}

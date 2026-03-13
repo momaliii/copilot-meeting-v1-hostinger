@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mic, Download, Menu, X } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useBranding } from '../contexts/BrandingContext';
 
 const NAV_LINKS = [
   { href: '#how', id: 'how', labelKey: 'landing.nav.howItWorks' },
@@ -13,6 +14,7 @@ const NAV_LINKS = [
 
 export default function Navbar({ onGetStarted }: { onGetStarted: () => void }) {
   const { t } = useTranslation();
+  const { siteName, logoUrl } = useBranding();
   const [activeSection, setActiveSection] = useState('features');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -70,10 +72,14 @@ export default function Navbar({ onGetStarted }: { onGetStarted: () => void }) {
     <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 font-heading">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="bg-indigo-600 p-1.5 rounded-lg">
-            <Mic className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-xl tracking-tight text-slate-900">Meeting Copilot</span>
+          {logoUrl ? (
+            <img src={logoUrl} alt={siteName} className="w-8 h-8 rounded-lg object-contain" />
+          ) : (
+            <div className="bg-indigo-600 p-1.5 rounded-lg">
+              <Mic className="w-5 h-5 text-white" />
+            </div>
+          )}
+          <span className="font-bold text-xl tracking-tight text-slate-900">{siteName}</span>
         </div>
         <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center gap-6">

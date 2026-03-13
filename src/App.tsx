@@ -26,6 +26,7 @@ import AnnouncementBar from './components/AnnouncementBar';
 import MeetingDetailsView from './components/MeetingDetailsView';
 import MeetingHistoryView from './components/MeetingHistoryView';
 import SupportView from './components/SupportView';
+import PlanDowngradePopup from './components/PlanDowngradePopup';
 import DashboardView from './components/DashboardView';
 import AudioPlayer from './components/AudioPlayer';
 import MediaPlayer from './components/MediaPlayer';
@@ -154,7 +155,9 @@ export default function App() {
   const [isTestingMic, setIsTestingMic] = useState(false);
 
   const [runTour, setRunTour] = useState(false);
-  const [usage, setUsage] = useState<{ usedSeconds: number, limitSeconds: number, remainingSeconds: number, limitMinutes: number, languageChangesLimit?: number, isUnlimited?: boolean, softLimitMinutes?: number, softLimitSeconds?: number, hardLimitMinutes?: number, hardLimitSeconds?: number, planExpiresAt?: string | null } | null>(null);
+  const [usage, setUsage] = useState<{ usedSeconds: number, limitSeconds: number, remainingSeconds: number, limitMinutes: number, languageChangesLimit?: number, isUnlimited?: boolean, softLimitMinutes?: number, softLimitSeconds?: number, hardLimitMinutes?: number, hardLimitSeconds?: number, planExpiresAt?: string | null, planId?: string } | null>(null);
+  const [showDowngradePopup, setShowDowngradePopup] = useState(false);
+  const [downgradedFromPlan, setDowngradedFromPlan] = useState('');
   const [userAnalytics, setUserAnalytics] = useState<UserAnalytics | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [userAnalyticsLoading, setUserAnalyticsLoading] = useState(false);
@@ -170,7 +173,7 @@ export default function App() {
     typeof window !== 'undefined' ? window.location.pathname : '/'
   );
 
-  const usageRef = useRef<{ usedSeconds: number, limitSeconds: number, remainingSeconds: number, limitMinutes: number, languageChangesLimit?: number, isUnlimited?: boolean, softLimitMinutes?: number, softLimitSeconds?: number, hardLimitMinutes?: number, hardLimitSeconds?: number, planExpiresAt?: string | null } | null>(null);
+  const usageRef = useRef<{ usedSeconds: number, limitSeconds: number, remainingSeconds: number, limitMinutes: number, languageChangesLimit?: number, isUnlimited?: boolean, softLimitMinutes?: number, softLimitSeconds?: number, hardLimitMinutes?: number, hardLimitSeconds?: number, planExpiresAt?: string | null, planId?: string } | null>(null);
   useEffect(() => {
     usageRef.current = usage;
   }, [usage]);
@@ -953,6 +956,15 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setUsage(data);
+
+        if (data.planId) {
+          const lastKnown = localStorage.getItem('last_known_plan_id');
+          if (lastKnown && lastKnown !== 'starter' && data.planId === 'starter' && !localStorage.getItem('dismiss_downgrade_popup')) {
+            setDowngradedFromPlan(lastKnown);
+            setShowDowngradePopup(true);
+          }
+          localStorage.setItem('last_known_plan_id', data.planId);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch usage', err);
@@ -3295,6 +3307,17 @@ export default function App() {
       )}
 
       </div>
+
+      {showDowngradePopup && (
+        <PlanDowngradePopup
+          previousPlan={downgradedFromPlan}
+          onContactSupport={() => { navigateToSupport(); }}
+          onDismiss={() => {
+            setShowDowngradePopup(false);
+            localStorage.setItem('dismiss_downgrade_popup', '1');
+          }}
+        />
+      )}
     </div>
   );
 }

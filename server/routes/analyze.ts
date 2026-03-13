@@ -365,7 +365,8 @@ If the audio is empty or contains no speech, state that clearly.`;
         error: 'Analysis failed: Gemini API is temporarily unavailable. Please try again in a few minutes, or use a shorter recording.',
       });
     }
-    res.status(500).json({ error: 'Analysis failed: ' + message });
+    console.error('[analyze] Unhandled error:', message);
+    res.status(500).json({ error: 'Analysis failed. Please try again later.' });
   }
 });
 

@@ -18,9 +18,11 @@ import {
   Compass,
   Shield,
   Monitor,
+  Palette,
 } from 'lucide-react';
 import type { AdminPage, AdminPermissions } from '../../types/admin';
 import type { TFunction } from 'i18next';
+import { useBranding } from '../../contexts/BrandingContext';
 
 type AdminSidebarProps = {
   isVisible: boolean;
@@ -43,6 +45,7 @@ export default function AdminSidebar({
   permissions,
   t,
 }: AdminSidebarProps) {
+  const { siteName } = useBranding();
   const navItemClass = (page: AdminPage) =>
     `w-full text-start px-3 py-2.5 rounded-xl text-sm font-medium flex items-center ${
       isCollapsed ? 'md:justify-center md:px-2' : 'gap-2'
@@ -62,7 +65,7 @@ export default function AdminSidebar({
         </div>
         <div className={`flex-1 min-w-0 ${hiddenWhenCollapsed}`}>
           <p className="font-semibold text-slate-900 truncate">{t('admin.adminPanel')}</p>
-          <p className="text-xs text-slate-500 truncate">{t('admin.meetingCopilot')}</p>
+          <p className="text-xs text-slate-500 truncate">{t('admin.meetingCopilot', { siteName })}</p>
         </div>
         <button
           onClick={onToggleCollapse}
@@ -166,6 +169,10 @@ export default function AdminSidebar({
             </button>
           </>
         )}
+        <button onClick={() => onNavigate('branding')} className={navItemClass('branding')} title={t('admin.branding')}>
+          <Palette className="w-4 h-4" />
+          <span className={hiddenWhenCollapsed}>{t('admin.branding')}</span>
+        </button>
       </nav>
     </aside>
   );

@@ -17,7 +17,7 @@ import sessionsRoutes from './server/routes/sessions.ts';
 import analyzeRoutes from './server/routes/analyze.ts';
 import translateRoutes from './server/routes/translate.ts';
 import { isTranscribeAvailable, createTranscribeWebSocketServer } from './server/routes/transcribe.ts';
-import { JWT_SECRET } from './server/middleware/auth.ts';
+import { JWT_SECRET, authenticateToken } from './server/middleware/auth.ts';
 import { securityGuard, loadBlockedIPs, startSecurityCleanup } from './server/middleware/security.ts';
 import { planAiRateLimiter } from './server/middleware/planRateLimit.ts';
 
@@ -120,7 +120,8 @@ async function startServer() {
 
   app.use(express.json({ limit: '1mb' }));
   app.use('/uploads/avatars', express.static('uploads/avatars'));
-  app.use('/uploads/support', express.static('uploads/support'));
+  app.use('/uploads/branding', express.static('uploads/branding'));
+  app.use('/uploads/support', authenticateToken, express.static('uploads/support'));
 
   const largePayloadJson = express.json({ limit: '20mb' });
 
@@ -161,9 +162,9 @@ async function startServer() {
   app.get('/api/health', async (_req, res) => {
     try {
       await db.queryOne('SELECT 1 as ok');
-      res.json({ status: 'ok', db: 'connected', node: process.version, env: process.env.NODE_ENV || 'development' });
-    } catch (err: any) {
-      res.status(500).json({ status: 'error', db: 'disconnected', error: err.message });
+      res.json({ status: 'ok', db: 'connected' });
+    } catch {
+      res.status(500).json({ status: 'error', db: 'disconnected' });
     }
   });
 
@@ -233,6 +234,30 @@ async function startServer() {
       res.json({ items: filtered });
     } catch (err) {
       res.status(500).json({ items: [] });
+    }
+  });
+
+  app.get('/api/public/branding', async (_req, res) => {
+    try {
+      const { rows } = await db.query('SELECT key, value FROM site_settings');
+      const settings: Record<string, string | null> = {
+        site_name: 'Meeting Copilot',
+        site_description: 'Record, transcribe, and analyze meetings with AI',
+        theme_color: '#4f46e5',
+        logo_url: null,
+        favicon_url: null,
+      };
+      for (const row of rows) settings[row.key] = row.value;
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json(settings);
+    } catch {
+      res.json({
+        site_name: 'Meeting Copilot',
+        site_description: 'Record, transcribe, and analyze meetings with AI',
+        theme_color: '#4f46e5',
+        logo_url: null,
+        favicon_url: null,
+      });
     }
   });
 
@@ -322,8 +347,11 @@ async function startServer() {
   // Token-based public share (Pro users generate share links)
   app.get('/api/public/share/:token', async (req, res) => {
     try {
-      const share = await db.queryOne('SELECT meeting_id FROM meeting_shares WHERE token = ?', [req.params.token]);
+      const share = await db.queryOne('SELECT meeting_id, expires_at FROM meeting_shares WHERE token = ?', [req.params.token]);
       if (!share) return res.status(404).json({ error: 'Share link not found or expired' });
+      if (share.expires_at && new Date(share.expires_at) < new Date()) {
+        return res.status(410).json({ error: 'Share link has expired' });
+      }
       const meeting = await db.queryOne('SELECT * FROM meetings WHERE id = ?', [share.meeting_id]);
       if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
       let analysis = null;
@@ -380,8 +408,9 @@ async function startServer() {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Authentication required'));
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; role?: string };
       (socket as any).userId = decoded.id;
+      (socket as any).userRole = decoded.role;
       next();
     } catch {
       next(new Error('Invalid token'));
@@ -390,8 +419,15 @@ async function startServer() {
 
   io.on('connection', (socket) => {
     const s = socket as any;
-    socket.on('join_conversation', (data: { conversationId: string; type?: 'user' | 'admin' }) => {
+    socket.on('join_conversation', async (data: { conversationId: string; type?: 'user' | 'admin' }) => {
       if (data?.conversationId) {
+        if (s.userRole !== 'admin') {
+          const conv = await db.queryOne(
+            'SELECT user_id FROM support_conversations WHERE id = ?',
+            [data.conversationId]
+          );
+          if (conv && conv.user_id !== s.userId) return;
+        }
         const room = `conversation:${data.conversationId}`;
         socket.join(room);
         s.conversationRoom = room;
@@ -402,12 +438,14 @@ async function startServer() {
     socket.on('typing_start', (data: { conversationId: string }) => {
       if (data?.conversationId) {
         const room = `conversation:${data.conversationId}`;
+        if (!socket.rooms.has(room)) return;
         socket.to(room).emit('typing_start', { userId: s.userId, type: s.participantType || 'user' });
       }
     });
     socket.on('typing_stop', (data: { conversationId: string }) => {
       if (data?.conversationId) {
         const room = `conversation:${data.conversationId}`;
+        if (!socket.rooms.has(room)) return;
         socket.to(room).emit('typing_stop', { userId: s.userId, type: s.participantType || 'user' });
       }
     });

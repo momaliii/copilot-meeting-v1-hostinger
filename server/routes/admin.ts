@@ -1,12 +1,35 @@
 import { Router } from 'express';
 import os from 'os';
 import bcrypt from 'bcryptjs';
+import { existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import multer from 'multer';
+import crypto from 'crypto';
 import db, { USAGE_TABLE, sqlCurrentMonth, sqlDateFilter, sqlDateColumn, isPostgres } from '../db.ts';
 import { GoogleGenAI, Type } from '@google/genai';
 import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth.ts';
 import { getAdminPermissions } from '../permissions.ts';
 import { blockIP, unblockIP, logSecurityEvent, getClientIP } from '../middleware/security.ts';
+
+const brandingDir = join(process.cwd(), 'uploads/branding');
+if (!existsSync(brandingDir)) mkdirSync(brandingDir, { recursive: true });
+
+const brandingUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, brandingDir),
+    filename: (_req, file, cb) => {
+      const ext = file.originalname.split('.').pop()?.toLowerCase() || 'png';
+      cb(null, `${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`);
+    },
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = file.mimetype.startsWith('image/');
+    if (ok) cb(null, true);
+    else cb(new Error('Only image files allowed'));
+  },
+});
 
 const router = Router();
 
@@ -159,7 +182,7 @@ router.get('/status', requirePermission('viewAnalytics'), async (req, res) => {
       nodeVersion: process.version,
       platform: `${os.type()} ${os.release()}`,
       arch: os.arch(),
-      hostname: os.hostname(),
+      hostname: '***',
       uptimeSeconds: Math.floor(process.uptime()),
       startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString(),
     },
@@ -1729,6 +1752,88 @@ router.get('/security/stats', requirePermission('viewAuditLogs'), async (req: an
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch security stats' });
   }
+});
+
+// ── Site Settings (Branding) ──
+
+const SETTINGS_DEFAULTS: Record<string, string | null> = {
+  site_name: 'Meeting Copilot',
+  site_description: 'Record, transcribe, and analyze meetings with AI',
+  theme_color: '#4f46e5',
+  logo_url: null,
+  favicon_url: null,
+};
+
+router.get('/settings', async (_req: any, res) => {
+  try {
+    const { rows } = await db.query('SELECT key, value FROM site_settings');
+    const settings: Record<string, string | null> = { ...SETTINGS_DEFAULTS };
+    for (const row of rows) settings[row.key] = row.value;
+    res.json(settings);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+router.put('/settings', async (req: any, res) => {
+  try {
+    const schema = z.object({
+      site_name: z.string().min(1).max(100).optional(),
+      site_description: z.string().max(500).optional(),
+      theme_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+      logo_url: z.string().max(500).nullable().optional(),
+      favicon_url: z.string().max(500).nullable().optional(),
+    });
+    const data = schema.parse(req.body);
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value === undefined) continue;
+      await db.run(
+        'INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+        [key, value]
+      );
+    }
+
+    await logAdminAction(req.user.id, 'update_site_settings', undefined, data);
+
+    const { rows } = await db.query('SELECT key, value FROM site_settings');
+    const settings: Record<string, string | null> = { ...SETTINGS_DEFAULTS };
+    for (const row of rows) settings[row.key] = row.value;
+    res.json(settings);
+  } catch (err: any) {
+    if (err instanceof z.ZodError) return res.status(400).json({ error: err.issues[0].message });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+router.post('/settings/reset', async (req: any, res) => {
+  try {
+    for (const [key, value] of Object.entries(SETTINGS_DEFAULTS)) {
+      await db.run(
+        'INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+        [key, value]
+      );
+    }
+    await logAdminAction(req.user.id, 'reset_site_settings');
+    res.json(SETTINGS_DEFAULTS);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reset settings' });
+  }
+});
+
+router.post('/settings/upload', (req: any, res) => {
+  brandingUpload.single('file')(req, res, async (err: any) => {
+    if (err) {
+      if (err.message?.includes('Only image')) return res.status(400).json({ error: err.message });
+      return res.status(500).json({ error: 'Upload failed' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'No file provided' });
+    const url = `/uploads/branding/${req.file.filename}`;
+    res.json({ url });
+  });
 });
 
 export default router;

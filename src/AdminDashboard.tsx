@@ -24,6 +24,7 @@ import AdminHeatmapView from './components/admin/AdminHeatmapView';
 import AdminTourView from './components/admin/AdminTourView';
 import AdminSecurityView from './components/admin/AdminSecurityView';
 import AdminStatusView from './components/admin/AdminStatusView';
+import AdminBrandingView from './components/admin/AdminBrandingView';
 import type { SystemStatus } from './components/admin/AdminStatusView';
 import type { ContactSubmissionRow } from './components/admin/AdminContactsView';
 import AnnouncementBar from './components/AnnouncementBar';
@@ -46,6 +47,7 @@ const PATH_TO_PAGE: Record<string, AdminPage> = {
   '/admin/tour': 'tour',
   '/admin/security': 'security',
   '/admin/status': 'status',
+  '/admin/branding': 'branding',
 };
 const PAGE_TO_PATH: Record<AdminPage, string> = {
   dashboard: '/admin/dashboard',
@@ -63,6 +65,7 @@ const PAGE_TO_PATH: Record<AdminPage, string> = {
   tour: '/admin/tour',
   security: '/admin/security',
   status: '/admin/status',
+  branding: '/admin/branding',
 };
 
 const defaultPermissions: AdminPermissions = {
@@ -1954,6 +1957,10 @@ export default function AdminDashboard() {
             onPageChange={(p) => { setContactPage(p); loadContacts(p); }}
             onRefresh={() => loadContacts(contactPage)}
           />
+        )}
+
+        {activePage === 'branding' && (
+          <AdminBrandingView token={token} t={t} />
         )}
 
         </main>

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Clock, Zap, Loader2, AlertCircle } from 'lucide-react';
+import { Clock, Zap, Loader2, AlertCircle, Mic } from 'lucide-react';
 import { formatDate } from './utils/format';
 import MeetingDetailsTabs, { type TabId } from './components/MeetingDetailsTabs';
+import { useBranding } from './contexts/BrandingContext';
 
 export default function SharedMeeting({ token }: { token: string }) {
   const { t, i18n } = useTranslation();
+  const { siteName, logoUrl } = useBranding();
   const [meeting, setMeeting] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,10 +89,14 @@ export default function SharedMeeting({ token }: { token: string }) {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="font-bold text-xl tracking-tight text-slate-900">Meeting Copilot</h1>
+            {logoUrl ? (
+              <img src={logoUrl} alt={siteName} className="w-8 h-8 rounded-lg object-contain" />
+            ) : (
+              <div className="bg-indigo-600 p-1.5 rounded-lg">
+                <Mic className="w-5 h-5 text-white" />
+              </div>
+            )}
+            <h1 className="font-bold text-xl tracking-tight text-slate-900">{siteName}</h1>
           </div>
           <a href="/" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
             {t('shared.createYourOwn')}

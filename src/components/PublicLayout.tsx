@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mic, Download } from 'lucide-react';
 import LanguageSwitcher from './LanguageSwitcher';
+import { useBranding } from '../contexts/BrandingContext';
 
 const PUBLIC_NAV = [
   { path: '/', labelKey: 'pages.home' },
@@ -14,6 +15,7 @@ const PUBLIC_NAV = [
 
 export default function PublicLayout({ children, onGetStarted }: { children: React.ReactNode; onGetStarted?: () => void }) {
   const { t } = useTranslation();
+  const { siteName, logoUrl } = useBranding();
   const path = typeof window !== 'undefined' ? window.location.pathname : '/';
 
   const handleNav = (e: React.MouseEvent) => {
@@ -30,10 +32,14 @@ export default function PublicLayout({ children, onGetStarted }: { children: Rea
       <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50 font-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <a href="/" onClick={handleNav} className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg">
-              <Mic className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-xl tracking-tight text-slate-900">Meeting Copilot</span>
+            {logoUrl ? (
+              <img src={logoUrl} alt={siteName} className="w-8 h-8 rounded-lg object-contain" />
+            ) : (
+              <div className="bg-indigo-600 p-1.5 rounded-lg">
+                <Mic className="w-5 h-5 text-white" />
+              </div>
+            )}
+            <span className="font-bold text-xl tracking-tight text-slate-900">{siteName}</span>
           </a>
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-6">
@@ -82,10 +88,14 @@ export default function PublicLayout({ children, onGetStarted }: { children: Rea
       <footer className="bg-white border-t border-slate-200 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg">
-              <Mic className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-lg tracking-tight text-slate-900 font-heading">Meeting Copilot</span>
+            {logoUrl ? (
+              <img src={logoUrl} alt={siteName} className="w-7 h-7 rounded-lg object-contain" />
+            ) : (
+              <div className="bg-indigo-600 p-1.5 rounded-lg">
+                <Mic className="w-4 h-4 text-white" />
+              </div>
+            )}
+            <span className="font-bold text-lg tracking-tight text-slate-900 font-heading">{siteName}</span>
           </div>
           <div className="flex items-center gap-6">
             <a href="/privacy" onClick={handleNav} className="text-sm font-medium text-slate-600 hover:text-slate-900 font-body">
@@ -101,7 +111,7 @@ export default function PublicLayout({ children, onGetStarted }: { children: Rea
               {t('pages.terms')}
             </a>
           </div>
-          <div className="text-sm text-slate-500 font-body">{t('landing.footer.copyright')}</div>
+          <div className="text-sm text-slate-500 font-body">{t('landing.footer.copyright', { siteName })}</div>
         </div>
       </footer>
     </div>

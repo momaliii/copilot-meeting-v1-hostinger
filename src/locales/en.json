@@ -474,14 +474,24 @@
       "poweredBy": "Powered by Gemini 2.5 Flash",
       "title": "Turn every meeting into",
       "titleHighlight": "clear next steps.",
+      "typingPhrase2": "instant summaries.",
+      "typingPhrase3": "smart action items.",
       "subtitle": "Record once, then get a transcript, concise summary, action items, decisions, and a follow-up email your team can use immediately.",
       "startFree": "Start free",
       "noCreditCard": "No credit card required",
       "previewOutputs": "Preview outputs",
+      "watchDemo": "Watch Demo",
       "lovedBy": "Loved by fast-moving teams that need clean notes, decisions, and owners right after every call.",
       "micTabBoth": "Mic / Tab / Both",
       "consentFirst": "Consent-first",
-      "shareReadyNotes": "Share-ready notes"
+      "shareReadyNotes": "Share-ready notes",
+      "trustedBy": "Trusted by teams at",
+      "demoRecord": "Recording meeting audio...",
+      "demoAnalyze": "AI analyzing transcript...",
+      "demoResults": "Results ready!",
+      "demoSummary": "Executive summary generated",
+      "demoActions": "3 action items extracted",
+      "demoDecisions": "2 key decisions captured"
     },
     "nav": {
       "howItWorks": "How it works",
@@ -497,7 +507,8 @@
     "cta": {
       "title": "Ready to turn meetings into action?",
       "subtitle": "Start free in seconds. No credit card required.",
-      "startFree": "Start free"
+      "startFree": "Start free",
+      "watchDemo": "Watch Demo"
     },
     "how": {
       "title": "How it works",
@@ -508,7 +519,10 @@
       "analyzeDesc": "Generate transcript, concise summary, action items, decisions, and sentiment.",
       "share": "Share",
       "shareDesc": "Send notes to your team or attach a summary back to your calendar event.",
-      "startFree": "Start free"
+      "startFree": "Start free",
+      "recordMock": "Capturing microphone and tab audio simultaneously...",
+      "analyzeMock": "Generating transcript, summary, and action items with AI...",
+      "shareMock": "One-click share to calendar, email, or team workspace."
     },
     "features": {
       "title": "Built for real meetings",
@@ -531,7 +545,8 @@
       "consentFirst": "Consent-first privacy",
       "consentDesc": "Audio is uploaded only when you click Analyze. Local storage is optional.",
       "consentImpact": "Built to support trust and compliance from day one.",
-      "whyItMatters": "Why it matters"
+      "whyItMatters": "Why it matters",
+      "seeItInAction": "See it in action"
     },
     "privacy": {
       "title": "Privacy & security, by design",
@@ -550,6 +565,11 @@
       "subtitle": "Start free, then upgrade only when your team needs more monthly minutes and advanced capabilities.",
       "mostPopular": "Most Popular",
       "perMonth": "/month",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "year": "year",
+      "mo": "mo",
+      "savePercent": "-17%",
       "monthlyMinutes": "{{count}} monthly minutes quota",
       "transcriptsSummary": "Transcripts, summary, action items",
       "videoCaption": "Video caption & screen recording analysis",
@@ -563,11 +583,18 @@
       "learnMore": "Learn more",
       "planLimits": "Plan limits are enforced by monthly minutes quotas.",
       "startFreeSeconds": "Start free in seconds",
-      "loadError": "We couldn't load pricing plans right now. You can still start free—no credit card required."
+      "loadError": "We couldn't load pricing plans right now. You can still start free—no credit card required.",
+      "compareFeatures": "Compare all features",
+      "feature": "Feature",
+      "moneyBack": "30-day money-back guarantee"
     },
     "faq": {
       "title": "FAQ",
       "subtitle": "Quick answers to common questions.",
+      "all": "All",
+      "general": "General",
+      "pricingCat": "Pricing",
+      "privacyCat": "Privacy",
       "q1": "Does it record my screen?",
       "a1": "No. When you record tab audio, the app requests tab capture to access the audio track, then immediately stops the video track.",
       "q2": "When is my audio uploaded?",
@@ -579,14 +606,23 @@
       "q5": "What are the limits?",
       "a5": "Plans enforce monthly minutes quotas. You can start free and upgrade in-app when you need more.",
       "q6": "Can it attach notes to my calendar?",
-      "a6": "Yes. When connected to Google Calendar, you can attach a meeting summary to an event with one click."
+      "a6": "Yes. When connected to Google Calendar, you can attach a meeting summary to an event with one click.",
+      "stillHaveQuestions": "Still have questions?",
+      "reachOut": "Our team is ready to help. Get in touch anytime.",
+      "contactSupport": "Contact Support"
     },
     "footer": {
       "privacy": "Privacy",
       "pricing": "Pricing",
       "contact": "Contact",
       "poweredBy": "Powered by Gemini",
-      "copyright": "© 2026 Meeting Copilot. All rights reserved."
+      "copyright": "© 2026 {{siteName}}. All rights reserved.",
+      "product": "Product",
+      "company": "Company",
+      "resources": "Resources",
+      "legal": "Legal",
+      "about": "About",
+      "tagline": "Turn every meeting into clear next steps with AI-powered transcription, summaries, and action items."
     },
     "socialProof": {
       "meetingsAnalyzed": "Meetings analyzed",
@@ -676,7 +712,7 @@
   },
   "admin": {
     "adminPanel": "Admin Panel",
-    "meetingCopilot": "Meeting Copilot",
+    "meetingCopilot": "{{siteName}}",
     "dashboard": "Dashboard",
     "managePlans": "Manage Plans",
     "manageUsers": "Manage Users",
@@ -1027,12 +1063,36 @@
     "noContactSubmissions": "No contact submissions",
     "tryDifferentFilters": "Try different filters or date range",
     "previous": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "branding": "Branding",
+    "brandingDesc": "Customize your site name, logo, favicon, and theme color.",
+    "siteName": "Site Name",
+    "siteDescription": "Meta Description",
+    "themeColor": "Theme Color",
+    "logo": "Logo",
+    "favicon": "Favicon",
+    "uploadLogo": "Upload Logo",
+    "uploadFavicon": "Upload Favicon",
+    "removeLogo": "Remove Logo",
+    "removeFavicon": "Remove Favicon",
+    "logoHint": "Recommended: 256x256 PNG or SVG. Max 2 MB.",
+    "faviconHint": "Recommended: 32x32 or 64x64 PNG. Max 2 MB.",
+    "resetDefaults": "Reset to Defaults",
+    "saveChanges": "Save Changes",
+    "brandingSaved": "Branding settings saved successfully.",
+    "brandingResetConfirm": "Reset all branding settings to defaults? This cannot be undone.",
+    "brandingResetDone": "Branding settings reset to defaults."
   },
   "error": {
     "title": "Something went wrong",
     "description": "The page failed to load. Try refreshing or go back to the dashboard.",
     "refresh": "Refresh page",
     "goHome": "Go to home"
+  },
+  "downgrade": {
+    "title": "Your Plan Has Been Downgraded",
+    "message": "Your {{plan}} plan has expired and you've been moved to the Starter plan. Some features may no longer be available. To upgrade again, please contact our support team.",
+    "contactSupport": "Contact Support",
+    "dismiss": "Got It"
   }
 }

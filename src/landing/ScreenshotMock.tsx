@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Users, FileText, CheckSquare, Activity } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useBranding } from '../contexts/BrandingContext';
 
 export default function ScreenshotMock() {
+  const { siteName } = useBranding();
   const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'actions' | 'sentiment'>('summary');
   const reduceMotion = useReducedMotion();
 
@@ -26,7 +28,7 @@ export default function ScreenshotMock() {
             <div className="w-3 h-3 rounded-full bg-amber-400"></div>
             <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
           </div>
-          <div className="text-xs font-medium text-slate-500">Meeting Copilot — Preview</div>
+          <div className="text-xs font-medium text-slate-500">{siteName} — Preview</div>
           <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
             AI Analysis
           </div>

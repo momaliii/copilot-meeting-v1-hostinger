@@ -92,15 +92,10 @@ router.post('/login', loginLimiter, async (req, res) => {
         return res.status(500).json({ error: 'Account configuration error. Please contact support.' });
       }
       let isMatch = false;
-      if (String(hash).startsWith('$2b$')) {
-        isMatch = await bcrypt.compare(password, hash);
-      } else {
-        isMatch = password === hash;
-        if (isMatch) {
-          const newHash = await bcrypt.hash(password, 10);
-          await db.run('UPDATE users SET password = ? WHERE id = ?', [newHash, user.id]);
-        }
+      if (!String(hash).startsWith('$2b$')) {
+        return res.status(500).json({ error: 'Account requires password reset. Please contact support.' });
       }
+      isMatch = await bcrypt.compare(password, hash);
 
       if (isMatch) {
         if (user.status === 'banned') {

@@ -86,6 +86,11 @@ router.post('/save', authenticateToken, async (req: any, res) => {
     const analysisJson = analysis ? JSON.stringify(analysis) : null;
     const now = new Date().toISOString();
 
+    const existing = await db.queryOne('SELECT user_id FROM meetings WHERE id = ?', [id]);
+    if (existing && existing.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to modify this meeting' });
+    }
+
     await db.run(
       `INSERT INTO meetings (id, user_id, title, date, duration, transcript, analysis_json, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -180,7 +185,11 @@ router.post('/:id/share', authenticateToken, async (req: any, res) => {
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
 
     const token = crypto.randomBytes(24).toString('hex');
-    await db.run('INSERT INTO meeting_shares (token, meeting_id) VALUES (?, ?)', [token, meetingId]);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await db.run(
+      'INSERT INTO meeting_shares (token, meeting_id, expires_at, created_by) VALUES (?, ?, ?, ?)',
+      [token, meetingId, expiresAt, req.user.id]
+    );
 
     const baseUrl = process.env.APP_URL || 'http://localhost:3000';
     const shareUrl = `${baseUrl}/share/${token}`;
@@ -191,6 +200,21 @@ router.post('/:id/share', authenticateToken, async (req: any, res) => {
     }
     console.error(err);
     res.status(500).json({ error: 'Failed to create share link' });
+  }
+});
+
+router.delete('/:id/share/:token', authenticateToken, async (req: any, res) => {
+  try {
+    const meetingId = req.params.id;
+    const shareToken = req.params.token;
+    const meeting = await db.queryOne('SELECT id FROM meetings WHERE id = ? AND user_id = ?', [meetingId, req.user.id]);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+
+    await db.run('DELETE FROM meeting_shares WHERE token = ? AND meeting_id = ?', [shareToken, meetingId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to revoke share link' });
   }
 });
 

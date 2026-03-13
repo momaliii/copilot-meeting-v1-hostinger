@@ -43,9 +43,12 @@ router.post('/events', authenticateToken, async (req: any, res) => {
 
     if (events.length === 0) return res.json({ ok: true });
 
-    // Create session first (session_events has FK to sessions)
-    const existing = await db.queryOne('SELECT id FROM sessions WHERE id = ?', [sessionId]);
-    if (!existing) {
+    const existing = await db.queryOne('SELECT id, user_id FROM sessions WHERE id = ?', [sessionId]);
+    if (existing) {
+      if (existing.user_id !== user.id) {
+        return res.status(403).json({ error: 'Not authorized to write to this session' });
+      }
+    } else {
       const now = new Date().toISOString();
       await db.run(
         'INSERT INTO sessions (id, user_id, started_at, page_url) VALUES (?, ?, ?, ?)',

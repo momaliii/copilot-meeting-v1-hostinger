@@ -90,6 +90,8 @@ router.post('/checkout', async (req: any, res) => {
     });
     const { planId, promoCode } = schema.parse(req.body);
 
+    if (planId === 'admin') return res.status(403).json({ error: 'This plan is not available' });
+
     const plan = await db.queryOne('SELECT id, price FROM plans WHERE id = ?', [planId]);
     if (!plan) return res.status(400).json({ error: 'Invalid plan' });
 
@@ -166,7 +168,7 @@ router.post('/cancel-plan', async (req: any, res) => {
     res.json({ success: true, planId: 'starter' });
   } catch (err: any) {
     console.error('Cancel plan error:', err);
-    res.status(500).json({ error: err?.message || 'Failed to cancel plan' });
+    res.status(500).json({ error: 'Failed to cancel plan' });
   }
 });
 
@@ -262,6 +264,7 @@ router.get('/usage', async (req: any, res) => {
       hardLimitMinutes,
       hardLimitSeconds: hardLimitMinutes * 60,
       planExpiresAt: userRow?.plan_expires_at || null,
+      planId: effective.planId,
     });
   } catch (err) {
     console.error(err);
@@ -415,13 +418,10 @@ router.put('/password', async (req: any, res) => {
     if (!userRow) return res.status(404).json({ error: 'User not found' });
     if (!userRow.hash) return res.status(400).json({ error: 'Account configuration error. Please contact support.' });
 
-    let isMatch = false;
-    if (String(userRow.hash).startsWith('$2b$')) {
-      isMatch = await bcrypt.compare(currentPassword, userRow.hash);
-    } else {
-      isMatch = currentPassword === userRow.hash;
+    if (!String(userRow.hash).startsWith('$2b$')) {
+      return res.status(500).json({ error: 'Account requires password reset. Please contact support.' });
     }
-
+    const isMatch = await bcrypt.compare(currentPassword, userRow.hash);
     if (!isMatch) {
       return res.status(400).json({ error: 'Incorrect current password' });
     }
@@ -460,12 +460,10 @@ router.post('/email/request', async (req: any, res) => {
     if (!userRow) return res.status(404).json({ error: 'User not found' });
     if (!userRow.hash) return res.status(400).json({ error: 'Account configuration error. Please contact support.' });
 
-    let isMatch = false;
-    if (String(userRow.hash).startsWith('$2b$')) {
-      isMatch = await bcrypt.compare(currentPassword, userRow.hash);
-    } else {
-      isMatch = currentPassword === userRow.hash;
+    if (!String(userRow.hash).startsWith('$2b$')) {
+      return res.status(500).json({ error: 'Account requires password reset. Please contact support.' });
     }
+    const isMatch = await bcrypt.compare(currentPassword, userRow.hash);
     if (!isMatch) return res.status(400).json({ error: 'Incorrect password' });
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -577,12 +575,10 @@ router.post('/2fa/disable', async (req: any, res) => {
     if (!userRow) return res.status(404).json({ error: 'User not found' });
     if (!userRow.hash) return res.status(400).json({ error: 'Account configuration error. Please contact support.' });
 
-    let isMatch = false;
-    if (String(userRow.hash).startsWith('$2b$')) {
-      isMatch = await bcrypt.compare(password, userRow.hash);
-    } else {
-      isMatch = password === userRow.hash;
+    if (!String(userRow.hash).startsWith('$2b$')) {
+      return res.status(500).json({ error: 'Account requires password reset. Please contact support.' });
     }
+    const isMatch = await bcrypt.compare(password, userRow.hash);
     if (!isMatch) return res.status(400).json({ error: 'Incorrect password' });
 
     await db.run('UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?', [user.id]);
@@ -611,12 +607,10 @@ router.delete('/account', async (req: any, res) => {
     if (!userRow) return res.status(404).json({ error: 'User not found' });
     if (!userRow.hash) return res.status(400).json({ error: 'Account configuration error. Please contact support.' });
 
-    let isMatch = false;
-    if (String(userRow.hash).startsWith('$2b$')) {
-      isMatch = await bcrypt.compare(password, userRow.hash);
-    } else {
-      isMatch = password === userRow.hash;
+    if (!String(userRow.hash).startsWith('$2b$')) {
+      return res.status(500).json({ error: 'Account requires password reset. Please contact support.' });
     }
+    const isMatch = await bcrypt.compare(password, userRow.hash);
     if (!isMatch) return res.status(400).json({ error: 'Incorrect password' });
 
     await db.run('DELETE FROM user_backup_codes WHERE user_id = ?', [user.id]);
