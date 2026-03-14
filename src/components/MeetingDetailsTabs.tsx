@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../AuthContext';
@@ -18,6 +18,7 @@ type MeetingDetailsTabsProps = {
   meetingTitle?: string;
   googleConnected?: boolean;
   onSendViaGmail?: (subject: string, body: string) => void;
+  onRefetchGoogleStatus?: () => void;
   showBadges?: boolean;
   onActionItemToggle?: (index: number, completed: boolean) => void;
   onSpeakerRename?: (original: string, newName: string) => void;
@@ -65,6 +66,7 @@ export default function MeetingDetailsTabs({
   meetingTitle = 'Meeting',
   googleConnected = false,
   onSendViaGmail,
+  onRefetchGoogleStatus,
   showBadges = false,
   onActionItemToggle,
   onSpeakerRename,
@@ -86,6 +88,12 @@ export default function MeetingDetailsTabs({
     return analysis.transcript?.split('\n').filter(l => l.trim() && l.match(/^(.+?):\s*(.*)/)).length ?? 0;
   }, [analysis.transcript]);
 
+  // Refetch Google status when Follow-up Email tab is opened (e.g. after connecting)
+  useEffect(() => {
+    if (activeTab === 'email' && onRefetchGoogleStatus) {
+      onRefetchGoogleStatus();
+    }
+  }, [activeTab, onRefetchGoogleStatus]);
 
   const tabs: { id: TabId; label: string; icon: React.ElementType; badge?: number }[] = [
     { id: 'summary', label: t('meeting.summary'), icon: FileText },

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { io } from 'socket.io-client';
 import { Mic, Square, Loader2, FileText, CheckSquare, MessageSquare, Mail, AlertCircle, MonitorUp, Play, Pause, Clock, ChevronRight, ChevronDown, History, Plus, Trash2, Users, Edit2, Check, Share2, Lightbulb, AlertTriangle, HelpCircle, Activity, Zap, Settings, X, Lock, Star, RefreshCw, Search, LayoutDashboard, MessageCircle, Send, Image, LogOut, Smile, Languages, ArrowLeft, Upload, Menu } from 'lucide-react';
@@ -200,31 +200,36 @@ export default function App() {
     };
   }, []);
 
+  const fetchGoogleStatus = useCallback(async () => {
+    if (!user || !token) {
+      setGoogleConnected(false);
+      return;
+    }
+    try {
+      const res = await fetch('/api/google/auth/status', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGoogleConnected(!!data.connected);
+      }
+    } catch {
+      setGoogleConnected(false);
+    }
+  }, [user, token]);
+
   useEffect(() => {
     if (!user || !token) {
       setGoogleConnected(false);
       return;
     }
-    const fetchGoogleStatus = async () => {
-      try {
-        const res = await fetch('/api/google/auth/status', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setGoogleConnected(!!data.connected);
-        }
-      } catch {
-        setGoogleConnected(false);
-      }
-    };
     fetchGoogleStatus();
     const params = new URLSearchParams(window.location.search);
     if (params.get('google_connected') === 'true') {
       fetchGoogleStatus();
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [user, token]);
+  }, [user, token, fetchGoogleStatus]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2976,6 +2981,7 @@ export default function App() {
               user={user}
               usage={usage}
               googleConnected={googleConnected}
+              onRefetchGoogleStatus={fetchGoogleStatus}
               isReanalyzing={isReanalyzing}
               isSharing={isSharing}
               onTranslate={reanalyzeMeetingInLanguage}
