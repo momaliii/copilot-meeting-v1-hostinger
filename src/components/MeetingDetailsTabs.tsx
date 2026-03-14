@@ -1,18 +1,22 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { FileText, CheckSquare, Users, Mail, Lightbulb, AlertTriangle, HelpCircle, Activity } from 'lucide-react';
+import { useAuth } from '../AuthContext';
+import { FileText, CheckSquare, Users, Mail, Lightbulb, AlertTriangle, HelpCircle, Activity, Loader2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { AnalysisResult } from '../types/meeting';
 import TranscriptPanel from './transcript/TranscriptPanel';
 
 export type TabId = 'summary' | 'insights' | 'actionItems' | 'transcript' | 'email';
 
+export type EmailTemplate = 'followUp' | 'actionItems' | 'fullMeeting';
+
 type MeetingDetailsTabsProps = {
   analysis: AnalysisResult;
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   meetingTitle?: string;
+  googleConnected?: boolean;
   onSendViaGmail?: (subject: string, body: string) => void;
   showBadges?: boolean;
   onActionItemToggle?: (index: number, completed: boolean) => void;
@@ -26,11 +30,40 @@ type MeetingDetailsTabsProps = {
   scrollToLine?: number;
 };
 
+function buildEmailBody(
+  template: EmailTemplate,
+  analysis: AnalysisResult,
+  t: (key: string) => string
+): string {
+  switch (template) {
+    case 'followUp':
+      return analysis.followUpEmail || '';
+    case 'actionItems': {
+      const items = (analysis.actionItems ?? [])
+        .map((a) => `- ${a.task}${a.assignee ? ` (${a.assignee})` : ''}`)
+        .join('\n');
+      return `${analysis.summary}\n\n${t('meeting.actionItems')}:\n${items || t('meeting.noActionItems')}`;
+    }
+    case 'fullMeeting': {
+      const items = (analysis.actionItems ?? [])
+        .map((a) => `- ${a.task}${a.assignee ? ` (${a.assignee})` : ''}`)
+        .join('\n');
+      const decisions = (analysis.keyDecisions ?? [])
+        .map((d) => `- ${typeof d === 'string' ? d : (d as { decision?: string }).decision || ''}`)
+        .join('\n');
+      return `${analysis.summary}\n\n${t('meeting.keyDecisions')}:\n${decisions || '-'}\n\n${t('meeting.actionItems')}:\n${items || t('meeting.noActionItems')}`;
+    }
+    default:
+      return analysis.followUpEmail || '';
+  }
+}
+
 export default function MeetingDetailsTabs({
   analysis,
   activeTab,
   onTabChange,
   meetingTitle = 'Meeting',
+  googleConnected = false,
   onSendViaGmail,
   showBadges = false,
   onActionItemToggle,
@@ -44,6 +77,11 @@ export default function MeetingDetailsTabs({
   scrollToLine,
 }: MeetingDetailsTabsProps) {
   const { t } = useTranslation();
+  const { token } = useAuth();
+  const [recipients, setRecipients] = useState('');
+  const [emailTemplate, setEmailTemplate] = useState<EmailTemplate>('followUp');
+  const [isSending, setIsSending] = useState(false);
+  const [sendToast, setSendToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const transcriptTurnCount = useMemo(() => {
     return analysis.transcript?.split('\n').filter(l => l.trim() && l.match(/^(.+?):\s*(.*)/)).length ?? 0;
   }, [analysis.transcript]);
@@ -358,7 +396,33 @@ export default function MeetingDetailsTabs({
         )}
 
         {activeTab === 'email' && (
-          <div id="panel-email" role="tabpanel" aria-labelledby="tab-email" className="animate-in fade-in">
+          <div id="panel-email" role="tabpanel" aria-labelledby="tab-email" className="animate-in fade-in space-y-4">
+            {googleConnected && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('meeting.emailTemplate')}</label>
+                  <select
+                    value={emailTemplate}
+                    onChange={(e) => setEmailTemplate(e.target.value as EmailTemplate)}
+                    className="w-full sm:w-auto px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                  >
+                    <option value="followUp">{t('meeting.emailTemplateFollowUp')}</option>
+                    <option value="actionItems">{t('meeting.emailTemplateActionItems')}</option>
+                    <option value="fullMeeting">{t('meeting.emailTemplateFullMeeting')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t('meeting.recipientsLabel')}</label>
+                  <input
+                    type="text"
+                    value={recipients}
+                    onChange={(e) => setRecipients(e.target.value)}
+                    placeholder={t('meeting.recipientsPlaceholder')}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+            )}
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center gap-2">
                 <div className="flex gap-1.5">
@@ -369,29 +433,86 @@ export default function MeetingDetailsTabs({
                 <div className="ml-4 text-xs font-medium text-slate-500">{t('meeting.newMessage')}</div>
               </div>
               <div className="p-6">
-                <div className="whitespace-pre-wrap text-slate-700 font-sans leading-relaxed">{analysis.followUpEmail}</div>
+                <div className="whitespace-pre-wrap text-slate-700 font-sans leading-relaxed">
+                  {buildEmailBody(emailTemplate, analysis, t)}
+                </div>
               </div>
               <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col-reverse sm:flex-row justify-end gap-2">
                 {onSendViaGmail && (
                   <button
-                    onClick={() => {
-                      const subject = `Follow-up: ${meetingTitle}`;
-                      onSendViaGmail(subject, analysis.followUpEmail);
+                    onClick={async () => {
+                      const subject =
+                        emailTemplate === 'followUp'
+                          ? `Follow-up: ${meetingTitle}`
+                          : emailTemplate === 'actionItems'
+                            ? `Action items: ${meetingTitle}`
+                            : `Meeting notes: ${meetingTitle}`;
+                      const body = buildEmailBody(emailTemplate, analysis, t);
+
+                      if (googleConnected) {
+                        const toList = recipients
+                          .split(/[,;]/)
+                          .map((e) => e.trim())
+                          .filter(Boolean);
+                        if (toList.length === 0) {
+                          setSendToast({ message: t('meeting.recipientsRequired'), type: 'error' });
+                          setTimeout(() => setSendToast(null), 3000);
+                          return;
+                        }
+                        setIsSending(true);
+                        try {
+                          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                          if (token) headers.Authorization = `Bearer ${token}`;
+                          const res = await fetch('/api/google/gmail/send', {
+                            method: 'POST',
+                            headers,
+                            credentials: 'include',
+                            body: JSON.stringify({ to: toList, subject, body }),
+                          });
+                          const data = await res.json().catch(() => ({}));
+                          if (!res.ok) {
+                            setSendToast({ message: data.error || t('meeting.emailSendFailed'), type: 'error' });
+                          } else {
+                            setSendToast({ message: t('meeting.emailSent'), type: 'success' });
+                          }
+                        } catch (err: any) {
+                          setSendToast({ message: err.message || t('meeting.emailSendFailed'), type: 'error' });
+                        } finally {
+                          setIsSending(false);
+                          setTimeout(() => setSendToast(null), 3000);
+                        }
+                      } else {
+                        onSendViaGmail(subject, body);
+                      }
                     }}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 order-first sm:order-none"
+                    disabled={isSending}
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center justify-center gap-2 min-h-[44px] sm:min-h-0 order-first sm:order-none"
                   >
-                    <Mail className="w-4 h-4" />
+                    {isSending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Mail className="w-4 h-4" />
+                    )}
                     {t('meeting.sendViaGmail')}
                   </button>
                 )}
                 <button
-                  onClick={() => navigator.clipboard.writeText(analysis.followUpEmail)}
+                  onClick={() => navigator.clipboard.writeText(buildEmailBody(emailTemplate, analysis, t))}
                   className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm min-h-[44px] sm:min-h-0"
                 >
                   {t('meeting.copyToClipboard')}
                 </button>
               </div>
             </div>
+            {sendToast && (
+              <div
+                className={`px-4 py-3 rounded-lg text-sm font-medium ${
+                  sendToast.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'
+                }`}
+              >
+                {sendToast.message}
+              </div>
+            )}
           </div>
         )}
       </div>

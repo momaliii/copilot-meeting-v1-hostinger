@@ -55,6 +55,7 @@ type MeetingDetailsViewProps = {
   onTranscriptEdit?: (newTranscript: string) => void;
   onUpdateTitle?: (id: string, newTitle: string) => Promise<void>;
   scrollToLine?: number;
+  googleConnected?: boolean;
 };
 
 export default function MeetingDetailsView({
@@ -89,6 +90,7 @@ export default function MeetingDetailsView({
   onTranscriptEdit,
   onUpdateTitle,
   scrollToLine,
+  googleConnected = false,
 }: MeetingDetailsViewProps) {
   const { t } = useTranslation();
   const translateDropdownRef = useRef<HTMLDivElement>(null);
@@ -467,6 +469,7 @@ export default function MeetingDetailsView({
         activeTab={activeTab}
         onTabChange={onTabChange}
         meetingTitle={meetingTitle}
+        googleConnected={googleConnected}
         onSendViaGmail={handleSendViaGmail}
         showBadges={true}
         onActionItemToggle={onActionItemToggle}

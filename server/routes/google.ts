@@ -1,8 +1,44 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { google } from 'googleapis';
 import crypto from 'crypto';
 import db from '../db.ts';
 import { authenticateToken } from '../middleware/auth.ts';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(email: string): boolean {
+  return typeof email === 'string' && EMAIL_REGEX.test(email.trim());
+}
+
+function buildMimeMessage(to: string[], subject: string, body: string): string {
+  const toHeader = to.join(', ');
+  const lines = [
+    `To: ${toHeader}`,
+    `Subject: ${subject.replace(/\r?\n/g, ' ')}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=utf-8',
+    '',
+    body,
+  ];
+  return lines.join('\r\n');
+}
+
+function base64UrlEncode(str: string): string {
+  return Buffer.from(str, 'utf-8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+const gmailSendLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many emails sent. Please try again in a minute.' },
+  keyGenerator: (req: any) => req.user?.id || req.ip,
+});
 
 const router = Router();
 
@@ -14,6 +50,7 @@ const REDIRECT_URI = `${APP_URL}/api/google/auth/callback`;
 const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/gmail.send',
 ];
 
 function isGoogleConfigured(): boolean {
@@ -161,6 +198,51 @@ router.delete('/auth/disconnect', authenticateToken, async (req: any, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to disconnect' });
+  }
+});
+
+// --- Gmail API ---
+
+// Send email via Gmail
+router.post('/gmail/send', authenticateToken, gmailSendLimiter, async (req: any, res) => {
+  try {
+    const { to, subject, body } = req.body;
+    if (!Array.isArray(to) || to.length === 0) {
+      return res.status(400).json({ error: 'At least one recipient is required' });
+    }
+    if (!subject || typeof subject !== 'string') {
+      return res.status(400).json({ error: 'Subject is required' });
+    }
+    if (!body || typeof body !== 'string') {
+      return res.status(400).json({ error: 'Body is required' });
+    }
+
+    const recipients = to
+      .map((e: string) => (typeof e === 'string' ? e.trim() : ''))
+      .filter(Boolean);
+    const invalid = recipients.filter((e: string) => !isValidEmail(e));
+    if (invalid.length > 0) {
+      return res.status(400).json({ error: `Invalid email address(es): ${invalid.join(', ')}` });
+    }
+
+    const oauth2Client = await getAuthenticatedClient(req.user.id);
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    const mime = buildMimeMessage(recipients, subject, body);
+    const raw = base64UrlEncode(mime);
+
+    const { data } = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: { raw },
+    });
+
+    res.json({ success: true, messageId: data.id });
+  } catch (err: any) {
+    console.error('[Google] Gmail send error:', err);
+    if (err.message === 'Google account not connected') {
+      return res.status(403).json({ error: 'Google account not connected. Please connect your Google account first.' });
+    }
+    res.status(500).json({ error: err.message || 'Failed to send email' });
   }
 });
 

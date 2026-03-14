@@ -170,6 +170,7 @@ export default function App() {
   const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
   const [currentPath, setCurrentPath] = useState(() =>
     typeof window !== 'undefined' ? window.location.pathname : '/'
   );
@@ -198,6 +199,32 @@ export default function App() {
       window.removeEventListener('offline', onOffline);
     };
   }, []);
+
+  useEffect(() => {
+    if (!user || !token) {
+      setGoogleConnected(false);
+      return;
+    }
+    const fetchGoogleStatus = async () => {
+      try {
+        const res = await fetch('/api/google/auth/status', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setGoogleConnected(!!data.connected);
+        }
+      } catch {
+        setGoogleConnected(false);
+      }
+    };
+    fetchGoogleStatus();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google_connected') === 'true') {
+      fetchGoogleStatus();
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [user, token]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2948,6 +2975,7 @@ export default function App() {
               languageOptions={LANGUAGE_OPTIONS}
               user={user}
               usage={usage}
+              googleConnected={googleConnected}
               isReanalyzing={isReanalyzing}
               isSharing={isSharing}
               onTranslate={reanalyzeMeetingInLanguage}
