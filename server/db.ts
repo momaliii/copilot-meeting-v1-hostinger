@@ -415,6 +415,38 @@ function runSqliteSchema(): void {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_login_attempts_created ON login_attempts(created_at)`);
   } catch (_) {}
 
+  // Google OAuth columns
+  try { db.exec(`ALTER TABLE users ADD COLUMN google_id TEXT`); } catch (_) {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN google_access_token TEXT`); } catch (_) {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN google_refresh_token TEXT`); } catch (_) {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN google_token_expires_at TEXT`); } catch (_) {}
+  try { db.exec(`ALTER TABLE users ADD COLUMN google_email TEXT`); } catch (_) {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)`); } catch (_) {}
+
+  // Scheduled meetings table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS scheduled_meetings (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        meet_link TEXT,
+        google_event_id TEXT,
+        attendees TEXT DEFAULT '[]',
+        bot_status TEXT DEFAULT 'none',
+        bot_meeting_id TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_scheduled_meetings_user ON scheduled_meetings(user_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_scheduled_meetings_start ON scheduled_meetings(start_time)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_scheduled_meetings_bot ON scheduled_meetings(bot_status)`);
+  } catch (_) {}
+
   const planCount = db.prepare('SELECT COUNT(*) as count FROM plans').get() as { count: number };
   if (planCount.count === 0) {
     db.prepare('INSERT INTO plans (id, name, price, minutes_limit, language_changes_limit) VALUES (?, ?, ?, ?, ?)').run('starter', 'Starter', 0, 60, 2);
@@ -461,7 +493,7 @@ function runSqliteSchema(): void {
 
 async function runPostgresSchema(): Promise<void> {
   if (!pgPool) return;
-  const migrations = ['001_initial_postgres.sql', '002_phase2.sql', '003_support_chat.sql', '004_support_attachments.sql', '005_support_admin.sql', '006_language_changes_limit.sql', '007_announcements_enhancements.sql', '008_support_notes_tags.sql', '009_avatar.sql', '010_email_verification.sql', '011_twofa.sql', '012_announcement_show_on.sql', '013_redirect_rules.sql', '014_signup_fields.sql', '015_promo_codes.sql', '016_contact_submissions.sql', '017_promo_per_user.sql', '018_session_replay.sql', '019_pro_video_plan.sql', '020_plan_features_and_model.sql', '021_transcript_model.sql', '022_tour_events.sql', '023_meetings_media.sql', '024_security_tables.sql', '025_admin_plan.sql', '026_per_user_overrides.sql', '027_plan_expiration.sql', '028_soft_limits.sql', '029_share_expiry.sql', '030_site_settings.sql'];
+  const migrations = ['001_initial_postgres.sql', '002_phase2.sql', '003_support_chat.sql', '004_support_attachments.sql', '005_support_admin.sql', '006_language_changes_limit.sql', '007_announcements_enhancements.sql', '008_support_notes_tags.sql', '009_avatar.sql', '010_email_verification.sql', '011_twofa.sql', '012_announcement_show_on.sql', '013_redirect_rules.sql', '014_signup_fields.sql', '015_promo_codes.sql', '016_contact_submissions.sql', '017_promo_per_user.sql', '018_session_replay.sql', '019_pro_video_plan.sql', '020_plan_features_and_model.sql', '021_transcript_model.sql', '022_tour_events.sql', '023_meetings_media.sql', '024_security_tables.sql', '025_admin_plan.sql', '026_per_user_overrides.sql', '027_plan_expiration.sql', '028_soft_limits.sql', '029_share_expiry.sql', '030_site_settings.sql', '031_google_oauth.sql', '032_scheduled_meetings.sql'];
   const migrationsDir = existsSync(join(__dirname, 'migrations'))
     ? join(__dirname, 'migrations')
     : join(process.cwd(), 'server', 'migrations');

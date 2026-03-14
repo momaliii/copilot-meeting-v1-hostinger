@@ -94,16 +94,6 @@ Migrations run automatically on startup when using Postgres. To run manually:
 npm run db:migrate
 ```
 
-## 4. Build Chrome Extension (optional)
-
-To distribute the Chrome extension with your production URL baked in:
-
-```bash
-APP_URL=https://your-meeting-copilot.run.app npm run build:extension
-```
-
-The zip will be at `dist/chrome-extension.zip`. Serve it from your app (it's included when you deploy) so users can download and install it.
-
-## 5. Verify
+## 4. Verify
 
 Visit your Cloud Run URL. You should see the Meeting Copilot app.

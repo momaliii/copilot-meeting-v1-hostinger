@@ -9,11 +9,12 @@ import {
   PanelLeft,
   X,
   AlertTriangle,
+  CalendarPlus,
 } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import { useBranding } from '../contexts/BrandingContext';
 
-export type UserSidebarView = 'dashboard' | 'record' | 'history' | 'support' | 'profile';
+export type UserSidebarView = 'dashboard' | 'record' | 'history' | 'schedule' | 'support' | 'profile';
 
 type Usage = {
   usedSeconds: number;
@@ -62,6 +63,7 @@ export default function UserSidebar({
   const isDashboard = activeView === 'dashboard';
   const isRecord = activeView === 'record';
   const isHistory = activeView === 'history';
+  const isSchedule = activeView === 'schedule';
   const isSupport = activeView === 'support';
 
   const navItemClass = (active: boolean) =>
@@ -132,6 +134,15 @@ export default function UserSidebar({
         >
           <History className="w-4 h-4 shrink-0" />
           <span className={hiddenWhenCollapsed}>{t('nav.meetingHistory')}</span>
+        </button>
+
+        <button
+          onClick={() => onNavigate('schedule')}
+          className={navItemClass(isSchedule)}
+          title="Schedule Meeting"
+        >
+          <CalendarPlus className="w-4 h-4 shrink-0" />
+          <span className={hiddenWhenCollapsed}>Schedule Meeting</span>
         </button>
 
         <button

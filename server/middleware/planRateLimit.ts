@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import db from '../db.ts';
 
 const planRateLimits: Record<string, { windowMs: number; max: number }> = {
@@ -10,33 +10,39 @@ const planRateLimits: Record<string, { windowMs: number; max: number }> = {
 
 const defaultLimit = { windowMs: 15 * 60 * 1000, max: 15 };
 
-const limiterCache = new Map<string, ReturnType<typeof rateLimit>>();
-
-function getLimiterForPlan(planId: string): ReturnType<typeof rateLimit> {
-  if (limiterCache.has(planId)) return limiterCache.get(planId)!;
+function createLimiter(planId: string) {
   const config = planRateLimits[planId] || defaultLimit;
-  const limiter = rateLimit({
+  return rateLimit({
     ...config,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
       error: `AI rate limit reached for your plan. ${planId === 'starter' ? 'Upgrade to Pro for higher limits.' : 'Please try again later.'}`,
     },
-    keyGenerator: (req: any) => req.user?.id || req.ip,
+    keyGenerator: (req: any) => {
+      if (req.user?.id) return req.user.id;
+      return ipKeyGenerator(req.ip);
+    },
   });
-  limiterCache.set(planId, limiter);
-  return limiter;
 }
+
+const limiters: Record<string, ReturnType<typeof rateLimit>> = {
+  starter: createLimiter('starter'),
+  pro: createLimiter('pro'),
+  pro_video: createLimiter('pro_video'),
+  admin: createLimiter('admin'),
+};
 
 export async function planAiRateLimiter(req: any, res: any, next: any) {
   try {
     if (!req.user?.id) {
-      return getLimiterForPlan('starter')(req, res, next);
+      return limiters.starter(req, res, next);
     }
     const row = await db.queryOne('SELECT plan_id FROM users WHERE id = ?', [req.user.id]);
     const planId = row?.plan_id || 'starter';
-    return getLimiterForPlan(planId)(req, res, next);
+    const limiter = limiters[planId] || limiters.starter;
+    return limiter(req, res, next);
   } catch (_) {
-    return getLimiterForPlan('starter')(req, res, next);
+    return limiters.starter(req, res, next);
   }
 }

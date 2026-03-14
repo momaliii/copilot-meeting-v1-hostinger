@@ -9,3 +9,4 @@ uploads/
 !.env.example
 app.db
 *.db
+.bot-chrome-profile/

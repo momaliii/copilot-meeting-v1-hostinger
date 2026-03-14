@@ -19,6 +19,7 @@ import sessionsRoutes from './server/routes/sessions.ts';
 import analyzeRoutes from './server/routes/analyze.ts';
 import translateRoutes from './server/routes/translate.ts';
 import { isTranscribeAvailable, createTranscribeWebSocketServer } from './server/routes/transcribe.ts';
+import googleRoutes from './server/routes/google.ts';
 import { JWT_SECRET, authenticateToken } from './server/middleware/auth.ts';
 import { securityGuard, loadBlockedIPs, startSecurityCleanup } from './server/middleware/security.ts';
 import { planAiRateLimiter } from './server/middleware/planRateLimit.ts';
@@ -38,7 +39,7 @@ async function startServer() {
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'blob:'],
-        connectSrc: ["'self'", 'wss:', 'https://generativelanguage.googleapis.com'],
+        connectSrc: ["'self'", 'wss:', 'https://generativelanguage.googleapis.com', 'https://www.googleapis.com', 'https://accounts.google.com'],
         mediaSrc: ["'self'", 'blob:'],
         workerSrc: ["'self'", 'blob:'],
       },
@@ -58,9 +59,16 @@ async function startServer() {
         callback(null, true);
         return;
       }
-      if (isDev && (origin?.startsWith('http://127.0.0.1:') || origin?.startsWith('http://192.168.') || origin?.startsWith('http://10.') || origin?.match(/^http:\/\/localhost(:\d+)?$/))) {
-        callback(null, true);
-        return;
+      if (isDev) {
+        const isLocal =
+          origin?.startsWith('http://127.0.0.1') ||
+          origin?.startsWith('http://192.168.') ||
+          origin?.startsWith('http://10.') ||
+          origin?.match(/^http:\/\/localhost(:\d+)?$/);
+        if (isLocal) {
+          callback(null, true);
+          return;
+        }
       }
       callback(new Error('Not allowed by CORS'));
     },
@@ -160,6 +168,7 @@ async function startServer() {
     res.setTimeout(120000);
     next();
   }, translateRoutes);
+  app.use('/api/google', googleRoutes);
 
   app.get('/api/health', async (_req, res) => {
     try {
@@ -403,6 +412,7 @@ async function startServer() {
       '/contact': { title: 'Contact — Meeting Copilot', description: 'Get in touch with the Meeting Copilot team for questions, feedback, or support.' },
       '/privacy': { title: 'Privacy Policy — Meeting Copilot', description: 'How Meeting Copilot handles your data and privacy. Audio is never uploaded without your explicit consent.' },
       '/terms': { title: 'Terms of Service — Meeting Copilot', description: 'Terms and conditions for using Meeting Copilot, the AI meeting assistant.' },
+      '/schedule': { title: 'Schedule Meeting — Meeting Copilot', description: 'Create and schedule Google Meet meetings and manage your calendar.' },
     };
 
     let indexHtml = '';

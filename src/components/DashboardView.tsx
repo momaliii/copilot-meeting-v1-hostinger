@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import {
   Mic,
   Loader2,
-  X,
   History,
   Clock,
   Activity,
@@ -63,8 +62,6 @@ type DashboardViewProps = {
   setAnalyticsDays: (d: number) => void;
   meetingsSearch: string;
   setMeetingsSearch: (s: string) => void;
-  dismissExtensionBanner: boolean;
-  setDismissExtensionBanner: (v: boolean) => void;
   onLoadMeeting: (meeting: Meeting, tab?: 'summary' | 'insights' | 'transcript' | 'actionItems' | 'email') => void;
   onNavigateToHistory: () => void;
   onNavigateToSupport: () => void;
@@ -85,8 +82,6 @@ export default function DashboardView({
   setAnalyticsDays,
   meetingsSearch,
   setMeetingsSearch,
-  dismissExtensionBanner,
-  setDismissExtensionBanner,
   onLoadMeeting,
   onNavigateToHistory,
   onNavigateToSupport,
@@ -155,35 +150,6 @@ export default function DashboardView({
 
   return (
     <section className="space-y-6 animate-in fade-in" aria-labelledby="dashboard-heading">
-      {!dismissExtensionBanner && (
-        <div
-          className="flex items-center justify-between gap-4 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3"
-          role="region"
-          aria-label={t('dashboard.extensionBanner')}
-        >
-          <p className="text-sm text-indigo-800">{t('dashboard.extensionBanner')}</p>
-          <div className="flex items-center gap-2 shrink-0">
-            <a
-              href="/chrome-extension.zip"
-              download="chrome-extension.zip"
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-            >
-              {t('dashboard.getExtension')}
-            </a>
-            <button
-              onClick={() => {
-                setDismissExtensionBanner(true);
-                localStorage.setItem('dismissExtensionBanner', 'true');
-              }}
-              className="p-1 text-indigo-500 hover:text-indigo-700 rounded"
-              aria-label={t('common.close')}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">

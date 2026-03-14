@@ -6,9 +6,8 @@
   "scripts": {
     "start": "NODE_ENV=production node dist/server.mjs",
     "dev": "tsx server.ts",
-    "build": "vite build && node scripts/build-server.js && npm run build:extension",
+    "build": "vite build && node scripts/build-server.js",
     "build:server": "node scripts/build-server.js",
-    "build:extension": "node scripts/build-extension.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
@@ -30,6 +29,7 @@
     "emoji-picker-react": "^4.18.0",
     "express": "^4.21.2",
     "express-rate-limit": "^8.2.1",
+    "googleapis": "^171.4.0",
     "helmet": "^8.1.0",
     "i18next": "^25.8.13",
     "jsonwebtoken": "^9.0.3",

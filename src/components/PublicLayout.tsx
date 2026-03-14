@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, Download } from 'lucide-react';
+import { Mic } from 'lucide-react';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useBranding } from '../contexts/BrandingContext';
 
@@ -58,14 +58,6 @@ export default function PublicLayout({ children, onGetStarted }: { children: Rea
             </div>
             <div className="flex items-center gap-3">
               <LanguageSwitcher variant="compact" />
-              <a
-                href="/chrome-extension.zip"
-                download="chrome-extension.zip"
-                className="hidden md:flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                {t('landing.nav.getExtension')}
-              </a>
               <a
                 href="/login"
                 onClick={handleNav}

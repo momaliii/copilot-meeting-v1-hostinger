@@ -28,6 +28,7 @@ import MeetingHistoryView from './components/MeetingHistoryView';
 import SupportView from './components/SupportView';
 import PlanDowngradePopup from './components/PlanDowngradePopup';
 import DashboardView from './components/DashboardView';
+import ScheduleMeetingView from './components/ScheduleMeetingView';
 import AudioPlayer from './components/AudioPlayer';
 import MediaPlayer from './components/MediaPlayer';
 import UserSidebar, { type UserSidebarView } from './components/UserSidebar';
@@ -83,7 +84,7 @@ type UserAnalytics = {
 
 export default function App() {
   const { t } = useTranslation();
-  const { user, logout, loading, adminViewMode, setAdminViewMode } = useAuth();
+  const { user, token, logout, loading, adminViewMode, setAdminViewMode } = useAuth();
   const [view, setView] = useState<'home' | 'app'>(() => {
     if (typeof window === 'undefined') return 'home';
     const p = window.location.pathname;
@@ -123,6 +124,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showHistoryView, setShowHistoryView] = useState(false);
   const [showSupportChat, setShowSupportChat] = useState(false);
+  const [showScheduleView, setShowScheduleView] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
@@ -164,7 +166,6 @@ export default function App() {
   const [meetingsLoading, setMeetingsLoading] = useState(true);
   const [analyticsDays, setAnalyticsDays] = useState(14);
   const [meetingsSearch, setMeetingsSearch] = useState('');
-  const [dismissExtensionBanner, setDismissExtensionBanner] = useState(() => localStorage.getItem('dismissExtensionBanner') === 'true');
   
   const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
@@ -337,7 +338,7 @@ export default function App() {
     })();
   }, []);
 
-  // Deep linking from Chrome extension: ?start=record or ?view=dashboard
+  // Deep linking: ?start=record or ?view=dashboard
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const startRecord = params.get('start') === 'record';
@@ -362,67 +363,6 @@ export default function App() {
       applyIntent();
     } else {
       setShowAuthModal(true);
-    }
-  }, [user]);
-
-  // Extension handoff: receive audio blob from Chrome extension
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const { blob, action } = (e as CustomEvent<{ blob: Blob; action?: 'analyze' | 'save' | 'open' }>).detail;
-      if (!blob) return;
-      setView('app');
-      setShowDashboard(false);
-      setShowProfile(false);
-      setShowHistoryView(false);
-      setShowSupportChat(false);
-      setPendingAudioBlob(blob);
-      setAudioUrl(URL.createObjectURL(blob));
-      setAnalysis(null);
-      setError(null);
-      if (!user) {
-        setShowAuthModal(true);
-      } else if (action === 'analyze') {
-        setTimeout(() => analyzeAudio(blob, outputLanguage), 100);
-      } else if (action === 'save') {
-        setTimeout(() => saveWithoutAnalyzing(blob), 100);
-      }
-    };
-    window.addEventListener('meetingCopilotExtensionAudio', handler as EventListener);
-    return () => window.removeEventListener('meetingCopilotExtensionAudio', handler as EventListener);
-  }, [outputLanguage, user]);
-
-  // Phase 3: Extension analyzed directly - receive pre-analyzed meeting
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const { blob, analysis, durationSeconds } = (e as CustomEvent<{ blob: Blob; analysis: AnalysisResult; durationSeconds?: number }>).detail;
-      if (!blob || !analysis) return;
-      setView('app');
-      setShowDashboard(false);
-      setShowProfile(false);
-      setShowHistoryView(false);
-      setShowSupportChat(false);
-      setPendingAudioBlob(null);
-      setAnalysis(null);
-      setError(null);
-      if (!user) {
-        setShowAuthModal(true);
-        setPendingAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
-        (window as any).__extensionAnalyzedPending = { blob, analysis, durationSeconds: durationSeconds || 0 };
-      } else {
-        saveMeeting(normalizeAnalysis(analysis), blob, outputLanguage, durationSeconds || 0);
-      }
-    };
-    window.addEventListener('meetingCopilotExtensionAnalyzed', handler as EventListener);
-    return () => window.removeEventListener('meetingCopilotExtensionAnalyzed', handler as EventListener);
-  }, [outputLanguage, user]);
-
-  // Phase 3: When user logs in after extension analyzed, save the pending meeting
-  useEffect(() => {
-    const pending = (window as any).__extensionAnalyzedPending;
-    if (user && pending?.blob && pending?.analysis) {
-      delete (window as any).__extensionAnalyzedPending;
-      saveMeeting(normalizeAnalysis(pending.analysis), pending.blob, outputLanguage, pending.durationSeconds || 0);
     }
   }, [user]);
 
@@ -542,6 +482,17 @@ export default function App() {
       setShowProfile(false);
       setShowHistoryView(true);
       setShowSupportChat(false);
+      setShowScheduleView(false);
+      return;
+    }
+    if (path === '/schedule') {
+      setView('app');
+      setCurrentMeetingId(null);
+      setShowDashboard(false);
+      setShowProfile(false);
+      setShowHistoryView(false);
+      setShowSupportChat(false);
+      setShowScheduleView(true);
       return;
     }
     if (path === '/support') {
@@ -551,6 +502,7 @@ export default function App() {
       setShowProfile(false);
       setShowHistoryView(false);
       setShowSupportChat(true);
+      setShowScheduleView(false);
       return;
     }
     if (path === '/profile') {
@@ -674,6 +626,7 @@ export default function App() {
         setShowProfile(false);
         setShowHistoryView(false);
         setShowSupportChat(false);
+        setShowScheduleView(false);
         return;
       }
       if (path === '/history') {
@@ -682,6 +635,16 @@ export default function App() {
         setShowProfile(false);
         setShowHistoryView(true);
         setShowSupportChat(false);
+        setShowScheduleView(false);
+        return;
+      }
+      if (path === '/schedule') {
+        setCurrentMeetingId(null);
+        setShowDashboard(false);
+        setShowProfile(false);
+        setShowHistoryView(false);
+        setShowSupportChat(false);
+        setShowScheduleView(true);
         return;
       }
       if (path === '/support') {
@@ -690,6 +653,7 @@ export default function App() {
         setShowProfile(false);
         setShowHistoryView(false);
         setShowSupportChat(true);
+        setShowScheduleView(false);
         return;
       }
       if (path === '/profile') {
@@ -1358,6 +1322,7 @@ export default function App() {
     setShowProfile(false);
     setShowHistoryView(false);
     setShowSupportChat(false);
+    setShowScheduleView(false);
     if (!isDesktop) setIsMobileMenuOpen(false);
     if (window.location.pathname !== '/dashboard') {
       window.history.pushState({ view: 'dashboard' }, '', '/dashboard');
@@ -1370,9 +1335,23 @@ export default function App() {
     setShowProfile(false);
     setShowHistoryView(true);
     setShowSupportChat(false);
+    setShowScheduleView(false);
     if (!isDesktop) setIsMobileMenuOpen(false);
     if (window.location.pathname !== '/history') {
       window.history.pushState({ view: 'history' }, '', '/history');
+    }
+  };
+
+  const navigateToSchedule = () => {
+    setCurrentMeetingId(null);
+    setShowDashboard(false);
+    setShowProfile(false);
+    setShowHistoryView(false);
+    setShowSupportChat(false);
+    setShowScheduleView(true);
+    if (!isDesktop) setIsMobileMenuOpen(false);
+    if (window.location.pathname !== '/schedule') {
+      window.history.pushState({ view: 'schedule' }, '', '/schedule');
     }
   };
 
@@ -1382,6 +1361,7 @@ export default function App() {
     setShowProfile(false);
     setShowHistoryView(false);
     setShowSupportChat(true);
+    setShowScheduleView(false);
     if (!isDesktop) setIsMobileMenuOpen(false);
     if (window.location.pathname !== '/support') {
       window.history.pushState({ view: 'support' }, '', '/support');
@@ -1394,6 +1374,7 @@ export default function App() {
     setShowProfile(true);
     setShowHistoryView(false);
     setShowSupportChat(false);
+    setShowScheduleView(false);
     setUserMenuOpen(false);
     if (!isDesktop) setIsMobileMenuOpen(false);
     if (window.location.pathname !== '/profile') {
@@ -1407,6 +1388,7 @@ export default function App() {
     setShowProfile(false);
     setShowHistoryView(false);
     setShowSupportChat(false);
+    setShowScheduleView(false);
     setAnalysis(null);
     setAudioUrl(null);
     setVideoUrl(null);
@@ -2281,6 +2263,8 @@ export default function App() {
           ? 'profile'
           : showSupportChat
           ? 'support'
+          : showScheduleView
+          ? 'schedule'
           : showHistoryView
           ? 'history'
           : showDashboard && !currentMeetingId
@@ -2299,6 +2283,7 @@ export default function App() {
                 if (view === 'dashboard') navigateToDashboard();
                 else if (view === 'record') startNewMeeting();
                 else if (view === 'history') navigateToHistory();
+                else if (view === 'schedule') navigateToSchedule();
                 else if (view === 'support') navigateToSupport();
               }}
               usage={usage}
@@ -2501,8 +2486,6 @@ export default function App() {
               setAnalyticsDays={setAnalyticsDays}
               meetingsSearch={meetingsSearch}
               setMeetingsSearch={setMeetingsSearch}
-              dismissExtensionBanner={dismissExtensionBanner}
-              setDismissExtensionBanner={setDismissExtensionBanner}
               onLoadMeeting={loadMeeting}
               onNavigateToHistory={navigateToHistory}
               onNavigateToSupport={navigateToSupport}
@@ -2556,6 +2539,10 @@ export default function App() {
               onSyncMeeting={syncMeetingToCloud}
               cloudSaveAvailable={!!((user?.plan_features?.cloud_save || user?.role === 'admin') && cloudSaveEnabled)}
             />
+          )}
+
+          {showScheduleView && (
+            <ScheduleMeetingView token={token} />
           )}
 
           {currentMeetingId && !analysis && (
