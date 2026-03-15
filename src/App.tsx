@@ -923,8 +923,9 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
-        e.preventDefault();
-        if (view === 'app' && showDashboard && !currentMeetingId && !showProfile && !showHistoryView && !showSupportChat && !isRecording && !isAnalyzing && !pendingAudioBlob && !pendingVideoBlob) {
+        const shouldHandle = view === 'app' && showDashboard && !currentMeetingId && !showProfile && !showHistoryView && !showSupportChat && !isRecording && !isAnalyzing && !pendingAudioBlob && !pendingVideoBlob;
+        if (shouldHandle) {
+          e.preventDefault();
           startNewMeeting();
         }
       }

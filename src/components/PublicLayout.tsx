@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic } from 'lucide-react';
+import { Mic, Menu, X } from 'lucide-react';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useBranding } from '../contexts/BrandingContext';
 
@@ -17,8 +17,23 @@ export default function PublicLayout({ children, onGetStarted }: { children: Rea
   const { t } = useTranslation();
   const { siteName, logoUrl } = useBranding();
   const path = typeof window !== 'undefined' ? window.location.pathname : '/';
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    if (mobileMenuOpen) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [mobileMenuOpen]);
 
   const handleNav = (e: React.MouseEvent) => {
+    setMobileMenuOpen(false);
     const target = (e.currentTarget as HTMLAnchorElement).getAttribute('href');
     if (target && target.startsWith('/') && !target.startsWith('//')) {
       e.preventDefault();
@@ -72,6 +87,49 @@ export default function PublicLayout({ children, onGetStarted }: { children: Rea
               >
                 {t('auth.signUp')}
               </a>
+              <div className="relative md:hidden" ref={mobileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  aria-label={mobileMenuOpen ? t('landing.nav.closeMenu') : t('landing.nav.openMenu')}
+                  aria-expanded={mobileMenuOpen}
+                  className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                </button>
+                {mobileMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-56 py-3 bg-white rounded-xl shadow-lg border border-slate-200">
+                    {PUBLIC_NAV.map((link) => (
+                      <a
+                        key={link.path}
+                        href={link.path}
+                        onClick={handleNav}
+                        className={`block px-4 py-2.5 text-sm font-medium hover:bg-slate-50 transition-colors ${
+                          path === link.path ? 'text-slate-900 bg-slate-50' : 'text-slate-600'
+                        }`}
+                      >
+                        {t(link.labelKey)}
+                      </a>
+                    ))}
+                    <div className="border-t border-slate-100 mt-2 pt-2 px-4 space-y-2">
+                      <a
+                        href="/login"
+                        onClick={handleNav}
+                        className="block w-full text-center text-sm font-medium text-slate-600 hover:text-slate-900 py-2.5"
+                      >
+                        {t('auth.signIn')}
+                      </a>
+                      <a
+                        href="/signup"
+                        onClick={handleNav}
+                        className="block w-full text-center bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        {t('auth.signUp')}
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

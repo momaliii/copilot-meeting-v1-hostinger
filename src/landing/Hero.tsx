@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Zap, ChevronRight, Mic, Lock, CircleCheck, Play } from 'lucide-react';
+import { Zap, ChevronRight, Mic, Lock, CircleCheck, Play, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const TYPING_PHRASES = [
@@ -21,7 +21,7 @@ export default function Hero({ onGetStarted }: { onGetStarted: () => void }) {
   }, []);
 
   return (
-    <section className="relative pt-16 pb-16 sm:pt-20 sm:pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <section className="relative py-20 sm:py-24 lg:py-28 px-4 sm:px-6 lg:px-8 overflow-hidden">
       {/* Gradient mesh background */}
       <div className="absolute inset-0 -z-10" aria-hidden="true">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-200/40 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
@@ -38,16 +38,16 @@ export default function Hero({ onGetStarted }: { onGetStarted: () => void }) {
             transition={{ duration: 0.6 }}
             className="max-w-2xl lg:max-w-xl font-heading"
           >
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50/80 text-indigo-700 text-sm font-medium mb-5 border border-indigo-100 backdrop-blur-sm">
-              <Zap className="w-4 h-4" />
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-500/10 to-violet-500/10 text-indigo-700 text-sm font-semibold mb-6 border border-indigo-200/60 backdrop-blur-sm shadow-sm">
+              <Zap className="w-4 h-4 text-indigo-500" />
               {t('landing.hero.poweredBy')}
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-2 leading-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-2 leading-[1.1]">
               {t('landing.hero.title')}
             </h1>
 
-            <div className="h-[1.3em] text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 relative overflow-hidden">
+            <div className="h-[1.3em] text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 relative overflow-hidden leading-[1.1]">
               <AnimatePresence mode="wait">
                 <motion.span
                   key={phraseIndex}
@@ -62,40 +62,40 @@ export default function Hero({ onGetStarted }: { onGetStarted: () => void }) {
               </AnimatePresence>
             </div>
 
-            <p className="text-base sm:text-lg md:text-xl text-slate-600 mb-8 leading-relaxed font-body">
+            <p className="text-base sm:text-lg md:text-xl text-slate-600 mb-8 leading-relaxed font-body max-w-xl">
               {t('landing.hero.subtitle')}
             </p>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-3">
               <button
                 onClick={onGetStarted}
-                className="relative w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl text-base sm:text-lg font-semibold transition-all shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 hover:scale-[1.02] active:scale-[0.98]"
+                className="relative w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl text-base sm:text-lg font-semibold transition-all shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 {t('landing.hero.startFree')}
                 <ChevronRight className="w-5 h-5" />
               </button>
               <a
                 href="#preview"
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-700 border border-slate-200 px-7 py-3.5 rounded-xl text-base sm:text-lg font-semibold transition-all shadow-sm"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-7 py-4 rounded-xl text-base sm:text-lg font-semibold transition-all shadow-sm hover:shadow-md hover:border-slate-300"
               >
                 <Play className="w-4 h-4 text-indigo-500" />
                 {t('landing.hero.watchDemo')}
               </a>
             </div>
-            <p className="text-xs text-slate-500 mb-8 font-body">{t('landing.hero.noCreditCard')}</p>
+            <p className="text-xs text-slate-500 mb-6 font-body">{t('landing.hero.noCreditCard')}</p>
 
             {/* Trust badges */}
             <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-white/70 backdrop-blur-sm border border-slate-200/80 px-3 py-1.5 rounded-full shadow-sm">
-                <Mic className="w-4 h-4 text-indigo-500" />
+              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-white/90 backdrop-blur-sm border border-slate-200 px-3 py-2 rounded-lg shadow-sm">
+                <Mic className="w-4 h-4 text-indigo-500 shrink-0" />
                 {t('landing.hero.micTabBoth')}
               </div>
-              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-white/70 backdrop-blur-sm border border-slate-200/80 px-3 py-1.5 rounded-full shadow-sm">
-                <Lock className="w-4 h-4 text-emerald-500" />
+              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-white/90 backdrop-blur-sm border border-slate-200 px-3 py-2 rounded-lg shadow-sm">
+                <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
                 {t('landing.hero.consentFirst')}
               </div>
-              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-white/70 backdrop-blur-sm border border-slate-200/80 px-3 py-1.5 rounded-full shadow-sm">
-                <CircleCheck className="w-4 h-4 text-violet-500" />
+              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 bg-white/90 backdrop-blur-sm border border-slate-200 px-3 py-2 rounded-lg shadow-sm">
+                <CircleCheck className="w-4 h-4 text-violet-500 shrink-0" />
                 {t('landing.hero.shareReadyNotes')}
               </div>
             </div>
@@ -103,9 +103,9 @@ export default function Hero({ onGetStarted }: { onGetStarted: () => void }) {
             {/* Logo trust bar */}
             <div className="mt-10 pt-8 border-t border-slate-200/60">
               <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-4 font-body">{t('landing.hero.trustedBy')}</p>
-              <div className="flex flex-wrap items-center gap-6 opacity-40">
+              <div className="flex flex-wrap items-center gap-6 opacity-50">
                 {['Acme Corp', 'TechStart', 'DataFlow', 'CloudSync'].map((name) => (
-                  <span key={name} className="text-sm font-bold text-slate-500 tracking-wide">{name}</span>
+                  <span key={name} className="text-sm font-semibold text-slate-500 tracking-wide">{name}</span>
                 ))}
               </div>
             </div>
@@ -120,17 +120,17 @@ export default function Hero({ onGetStarted }: { onGetStarted: () => void }) {
             className="lg:pl-4 scroll-mt-24"
           >
             <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-br from-indigo-100/50 via-transparent to-violet-100/50 rounded-3xl blur-2xl" aria-hidden="true" />
-              <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-200/60 overflow-hidden">
+              <div className="absolute -inset-4 bg-gradient-to-br from-indigo-100/40 via-transparent to-violet-100/40 rounded-3xl blur-2xl" aria-hidden="true" />
+              <div className="relative bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 overflow-hidden ring-1 ring-slate-900/5">
                 {/* App mockup header */}
-                <div className="bg-slate-50 border-b border-slate-200 px-5 py-3 flex items-center gap-2">
+                <div className="bg-slate-50/80 border-b border-slate-200 px-5 py-3 flex items-center gap-2">
                   <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-400" />
-                    <div className="w-3 h-3 rounded-full bg-amber-400" />
-                    <div className="w-3 h-3 rounded-full bg-green-400" />
+                    <div className="w-3 h-3 rounded-full bg-red-400/90" />
+                    <div className="w-3 h-3 rounded-full bg-amber-400/90" />
+                    <div className="w-3 h-3 rounded-full bg-green-400/90" />
                   </div>
                   <div className="flex-1 flex justify-center">
-                    <div className="bg-white rounded-md px-3 py-0.5 text-xs text-slate-400 border border-slate-200">meeting-copilot.app</div>
+                    <div className="bg-white rounded-md px-3 py-1 text-xs text-slate-500 border border-slate-200 font-medium">meeting-copilot.app</div>
                   </div>
                 </div>
                 {/* Auto-playing flow animation */}
@@ -156,13 +156,13 @@ function DemoFlow() {
   }, []);
 
   const steps = [
-    { label: t('landing.hero.demoRecord'), icon: '🎙️', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-    { label: t('landing.hero.demoAnalyze'), icon: '⚡', color: 'bg-violet-50 text-violet-700 border-violet-200' },
-    { label: t('landing.hero.demoResults'), icon: '📋', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { label: t('landing.hero.demoRecord'), icon: 'record', color: 'bg-indigo-50/80 text-indigo-700 border-indigo-200' },
+    { label: t('landing.hero.demoAnalyze'), icon: 'analyze', color: 'bg-violet-50/80 text-violet-700 border-violet-200' },
+    { label: t('landing.hero.demoResults'), icon: 'results', color: 'bg-emerald-50/80 text-emerald-700 border-emerald-200' },
   ];
 
   return (
-    <div className="p-6 sm:p-8 min-h-[280px] flex flex-col justify-center">
+    <div className="p-6 sm:p-8 min-h-[300px] flex flex-col justify-center">
       <div className="flex items-center justify-center gap-2 mb-6">
         {steps.map((s, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -183,14 +183,60 @@ function DemoFlow() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.3 }}
-          className={`text-center p-6 rounded-xl border ${steps[step].color}`}
+          className={`text-center p-8 rounded-xl border-2 ${steps[step].color}`}
         >
-          <div className="text-3xl mb-3">{steps[step].icon}</div>
-          <div className="font-semibold text-lg">{steps[step].label}</div>
+          {steps[step].icon === 'record' && (
+            <div className="flex flex-col items-center gap-4">
+              <motion.div
+                animate={{ scale: [1, 1.03, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center ring-4 ring-indigo-100/80"
+              >
+                <Mic className="w-10 h-10 text-indigo-600" strokeWidth={2} />
+              </motion.div>
+              <p className="font-semibold text-lg text-slate-700">{steps[step].label}</p>
+            </div>
+          )}
+          {steps[step].icon === 'analyze' && (
+            <div className="flex flex-col items-center gap-4">
+              <motion.div
+                animate={{
+                  opacity: [0.9, 1, 0.9],
+                  scale: [1, 1.05, 1],
+                }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                className="relative w-16 h-16 rounded-xl bg-violet-100 flex items-center justify-center ring-2 ring-violet-200/60"
+              >
+                <Zap className="w-8 h-8 text-amber-500" strokeWidth={2.5} fill="currentColor" />
+              </motion.div>
+              <p className="font-semibold text-lg text-slate-700 flex items-center justify-center gap-1">
+                {t('landing.hero.demoAnalyze').replace(/\.+$/, '')}
+                <span className="inline-flex">
+                  {[0, 1, 2].map((i) => (
+                    <motion.span
+                      key={i}
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
+                    >
+                      .
+                    </motion.span>
+                  ))}
+                </span>
+              </p>
+            </div>
+          )}
+          {steps[step].icon === 'results' && (
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-14 h-14 rounded-xl bg-emerald-100 flex items-center justify-center">
+                <ClipboardList className="w-7 h-7 text-emerald-600" strokeWidth={2} />
+              </div>
+              <p className="font-bold text-lg text-slate-800">{t('landing.hero.demoResults')}</p>
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
 
-      {/* Simulated output preview */}
+      {/* Result items - white cards with checkmarks */}
       <AnimatePresence>
         {step === 2 && (
           <motion.div
@@ -198,17 +244,19 @@ function DemoFlow() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.4 }}
-            className="mt-4 space-y-2 overflow-hidden"
+            className="mt-4 space-y-2.5 overflow-hidden"
           >
             {[t('landing.hero.demoSummary'), t('landing.hero.demoActions'), t('landing.hero.demoDecisions')].map((item, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.15 }}
-                className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2"
+                transition={{ delay: i * 0.12 }}
+                className="flex items-center gap-3 text-sm text-slate-700 bg-white rounded-lg px-4 py-3 border border-slate-200/80 shadow-sm"
               >
-                <CircleCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <CircleCheck className="w-3 h-3 text-emerald-600" strokeWidth={2.5} />
+                </div>
                 {item}
               </motion.div>
             ))}

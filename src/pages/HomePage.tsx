@@ -1,6 +1,5 @@
-import { useTranslation } from 'react-i18next';
-import { ChevronRight } from 'lucide-react';
 import AnnouncementBar from '../components/AnnouncementBar';
+import CTASection from '../components/CTASection';
 import PublicLayout from '../components/PublicLayout';
 import Hero from '../landing/Hero';
 import FeaturesSection from '../landing/FeaturesSection';
@@ -8,16 +7,10 @@ import PricingSection from '../landing/PricingSection';
 import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function HomePage({ onGetStarted, onSelectPlan }: { onGetStarted: () => void; onSelectPlan?: (planId: string) => void }) {
-  const { t } = useTranslation();
   usePageMeta(
     'Meeting Copilot — AI Meeting Notes, Transcripts & Action Items',
     'Record, transcribe, and analyze meetings with AI. Get summaries, action items, and follow-up emails. Start free.'
   );
-
-  const handleNav = (path: string) => () => {
-    window.history.pushState({}, '', path);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  };
 
   return (
     <PublicLayout>
@@ -28,31 +21,7 @@ export default function HomePage({ onGetStarted, onSelectPlan }: { onGetStarted:
         <Hero onGetStarted={onGetStarted} />
         <FeaturesSection />
         <PricingSection onGetStarted={onGetStarted} onSelectPlan={onSelectPlan} />
-        <section className="py-20 bg-white border-y border-slate-200">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4 font-heading">{t('landing.cta.title')}</h2>
-            <p className="text-slate-600 mb-8 font-body">{t('landing.cta.subtitle')}</p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <button
-                onClick={onGetStarted}
-                className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] font-heading"
-              >
-                {t('landing.cta.startFree')}
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              <a
-                href="/pricing"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleNav('/pricing')();
-                }}
-                className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-8 py-4 rounded-xl text-lg font-semibold transition-all"
-              >
-                {t('pages.pricing')}
-              </a>
-            </div>
-          </div>
-        </section>
+        <CTASection onGetStarted={onGetStarted} variant="gradient" />
       </div>
     </PublicLayout>
   );

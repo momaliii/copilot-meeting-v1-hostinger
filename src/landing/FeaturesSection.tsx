@@ -15,14 +15,14 @@ export default function FeaturesSection() {
   const { t } = useTranslation();
 
   return (
-    <section id="features" className="py-24 scroll-mt-24">
+    <section id="features" className="py-20 sm:py-24 lg:py-28 scroll-mt-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 font-heading">{t('landing.features.title')}</h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto font-body">{t('landing.features.subtitle')}</p>
