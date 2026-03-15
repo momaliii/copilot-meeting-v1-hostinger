@@ -171,6 +171,7 @@ export default function App() {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [googleConnected, setGoogleConnected] = useState(false);
+  const [smtpAvailable, setSmtpAvailable] = useState(false);
   const [currentPath, setCurrentPath] = useState(() =>
     typeof window !== 'undefined' ? window.location.pathname : '/'
   );
@@ -230,6 +231,23 @@ export default function App() {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [user, token, fetchGoogleStatus]);
+
+  useEffect(() => {
+    const fetchSmtpAvailable = async () => {
+      try {
+        const res = await fetch('/api/email/available');
+        if (res.ok) {
+          const data = await res.json();
+          setSmtpAvailable(!!data.available);
+        } else {
+          setSmtpAvailable(false);
+        }
+      } catch {
+        setSmtpAvailable(false);
+      }
+    };
+    fetchSmtpAvailable();
+  }, [user]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2156,6 +2174,24 @@ export default function App() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getShareLink = async (): Promise<string | null> => {
+    if (!currentMeetingId) return null;
+    const meeting = meetings.find(m => m.id === currentMeetingId);
+    if (!meeting) return null;
+    const authToken = localStorage.getItem('token');
+    if (!authToken) return null;
+    try {
+      const res = await fetch(`/api/meetings/${meeting.id}/share`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      return res.ok && data.shareUrl ? data.shareUrl : null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleShare = async () => {
     if (!currentMeetingId) return;
     const meeting = meetings.find(m => m.id === currentMeetingId);
@@ -2168,25 +2204,12 @@ export default function App() {
         alert('Please sign in to share meetings.');
         return;
       }
-      const res = await fetch(`/api/meetings/${meeting.id}/share`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${authToken}` },
-      });
-      const text = await res.text();
-      let parsed: { shareUrl?: string; error?: string };
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        parsed = {};
-      }
-      if (res.ok && parsed.shareUrl) {
-        await navigator.clipboard.writeText(parsed.shareUrl);
+      const shareUrl = await getShareLink();
+      if (shareUrl) {
+        await navigator.clipboard.writeText(shareUrl);
         alert('Share link copied to clipboard!');
       } else {
-        const msg = res.status === 404
-          ? 'Meeting not in cloud. Save this meeting with cloud save enabled to share it.'
-          : (parsed?.error || 'Failed to generate share link.');
-        alert(msg);
+        alert('Meeting not in cloud. Save this meeting with cloud save enabled to share it.');
       }
     } catch (err) {
       console.error(err);
@@ -2981,12 +3004,14 @@ export default function App() {
               user={user}
               usage={usage}
               googleConnected={googleConnected}
+              smtpAvailable={smtpAvailable}
               onRefetchGoogleStatus={fetchGoogleStatus}
               isReanalyzing={isReanalyzing}
               isSharing={isSharing}
               onTranslate={reanalyzeMeetingInLanguage}
               onReanalyze={reanalyzeMeeting}
               onShareLink={(user?.plan_features?.cloud_save || user?.role === 'admin') && cloudSaveEnabled ? handleShare : undefined}
+              onGetShareLink={(user?.plan_features?.cloud_save || user?.role === 'admin') && cloudSaveEnabled ? getShareLink : undefined}
               onShare={async () => {
                 if (isSharing) return;
                 setIsSharing(true);

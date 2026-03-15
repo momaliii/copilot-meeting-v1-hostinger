@@ -4,6 +4,10 @@ const hasSmtp =
   process.env.SMTP_HOST ||
   (process.env.SMTP_USER && process.env.SMTP_PASS);
 
+export function isSmtpConfigured(): boolean {
+  return !!hasSmtp;
+}
+
 const transporter = hasSmtp
   ? nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'localhost',
@@ -37,6 +41,32 @@ export async function sendVerificationEmail(to: string, verificationLink: string
     await transporter.sendMail(mailOptions);
   } catch (err) {
     console.error('Failed to send verification email:', err);
+    throw err;
+  }
+}
+
+export async function sendMeetingEmail(
+  to: string[],
+  replyTo: string,
+  subject: string,
+  body: string
+): Promise<void> {
+  if (!transporter) {
+    throw new Error('SMTP not configured');
+  }
+
+  const mailOptions = {
+    from: process.env.SMTP_FROM || 'noreply@meetingcopilot.app',
+    to,
+    replyTo,
+    subject,
+    text: body,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (err) {
+    console.error('[Email] Failed to send meeting email:', err);
     throw err;
   }
 }

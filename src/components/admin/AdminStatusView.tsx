@@ -4,7 +4,7 @@ import {
   Server, Cpu, HardDrive, Clock, RefreshCw,
   Database, Bot, Mic, Mail, KeyRound,
   Users, FileText, MonitorPlay, MessageSquare,
-  Shield, ExternalLink
+  Shield, ExternalLink, Globe
 } from 'lucide-react';
 
 export type SystemStatus = {
@@ -14,7 +14,9 @@ export type SystemStatus = {
     jwtConfigured: boolean;
     deepgramConfigured: boolean;
     smtpConfigured: boolean;
+    googleOAuthConfigured?: boolean;
   };
+  smtpRateLimits?: { perMinute: number; perDay: number };
   server: {
     nodeVersion: string;
     platform: string;
@@ -258,8 +260,24 @@ export default function AdminStatusView({ status, loading, lastUpdated, onRefres
             <tr>
               <td className="px-6 py-3 flex items-center gap-2"><Mail className="w-4 h-4 text-slate-400" /> {t('admin.emailService', 'Email / SMTP')}</td>
               <td className="px-6 py-3"><StatusDot ok={status.checks.smtpConfigured} /> <span className="ms-1.5">{status.checks.smtpConfigured ? t('admin.configured', 'Configured') : t('admin.notConfigured', 'Not Configured')}</span></td>
-              <td className="px-6 py-3 text-slate-500">SMTP_HOST / SMTP_USER</td>
+              <td className="px-6 py-3 text-slate-500">
+                {status.checks.smtpConfigured
+                  ? (status.smtpRateLimits
+                      ? t('admin.emailSmtpDetails', 'Verification + meeting follow-ups · {{perMin}}/min, {{perDay}}/day', {
+                          perMin: status.smtpRateLimits.perMinute,
+                          perDay: status.smtpRateLimits.perDay,
+                        })
+                      : t('admin.emailSmtpDetailsShort', 'Verification + meeting follow-ups'))
+                  : 'SMTP_HOST / SMTP_USER'}
+              </td>
             </tr>
+            {status.checks.googleOAuthConfigured !== undefined && (
+              <tr>
+                <td className="px-6 py-3 flex items-center gap-2"><Globe className="w-4 h-4 text-slate-400" /> {t('admin.googleOAuth', 'Google OAuth')}</td>
+                <td className="px-6 py-3"><StatusDot ok={status.checks.googleOAuthConfigured} /> <span className="ms-1.5">{status.checks.googleOAuthConfigured ? t('admin.configured', 'Configured') : t('admin.notConfigured', 'Not Configured')}</span></td>
+                <td className="px-6 py-3 text-slate-500">{t('admin.googleOAuthDetails', 'Gmail + Calendar')}</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

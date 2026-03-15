@@ -145,6 +145,16 @@ router.get('/status', requirePermission('viewAnalytics'), async (req, res) => {
 
   let storage = { users: 0, meetings: 0, sessions: 0, feedback: 0 };
   let securitySummary = { blockedIPs: 0, events24h: 0 };
+  let smtpRateLimits = { perMinute: 5, perDay: 20 };
+  try {
+    const settingsRows = (await db.query('SELECT key, value FROM site_settings')).rows;
+    const settingsMap: Record<string, string> = {};
+    for (const r of settingsRows) settingsMap[r.key] = r.value;
+    smtpRateLimits = {
+      perMinute: Math.min(60, Math.max(1, parseInt(settingsMap.smtp_send_rate_limit_per_minute || '5', 10) || 5)),
+      perDay: Math.min(200, Math.max(1, parseInt(settingsMap.smtp_send_rate_limit_per_day || '20', 10) || 20)),
+    };
+  } catch (_) {}
   try {
     const [usersRow, meetingsRow, sessionsRow, feedbackRow] = await Promise.all([
       db.queryOne('SELECT COUNT(*) as count FROM users'),
@@ -177,6 +187,7 @@ router.get('/status', requirePermission('viewAnalytics'), async (req, res) => {
       jwtConfigured: !!process.env.JWT_SECRET && process.env.JWT_SECRET !== 'your-secret-key-for-jwt-signing',
       deepgramConfigured: !!process.env.DEEPGRAM_API_KEY,
       smtpConfigured: !!(process.env.SMTP_HOST || (process.env.SMTP_USER && process.env.SMTP_PASS)),
+      googleOAuthConfigured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     },
     server: {
       nodeVersion: process.version,
@@ -200,6 +211,7 @@ router.get('/status', requirePermission('viewAnalytics'), async (req, res) => {
     },
     storage,
     securitySummary,
+    smtpRateLimits,
   });
 });
 
@@ -1762,6 +1774,8 @@ const SETTINGS_DEFAULTS: Record<string, string | null> = {
   theme_color: '#4f46e5',
   logo_url: null,
   favicon_url: null,
+  smtp_send_rate_limit_per_minute: '5',
+  smtp_send_rate_limit_per_day: '20',
 };
 
 router.get('/settings', async (_req: any, res) => {
@@ -1784,6 +1798,8 @@ router.put('/settings', async (req: any, res) => {
       theme_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
       logo_url: z.string().max(500).nullable().optional(),
       favicon_url: z.string().max(500).nullable().optional(),
+      smtp_send_rate_limit_per_minute: z.coerce.number().min(1).max(60).optional(),
+      smtp_send_rate_limit_per_day: z.coerce.number().min(1).max(200).optional(),
     });
     const data = schema.parse(req.body);
 

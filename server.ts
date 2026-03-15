@@ -20,6 +20,7 @@ import analyzeRoutes from './server/routes/analyze.ts';
 import translateRoutes from './server/routes/translate.ts';
 import { isTranscribeAvailable, createTranscribeWebSocketServer } from './server/routes/transcribe.ts';
 import googleRoutes from './server/routes/google.ts';
+import emailRoutes from './server/routes/email.ts';
 import { JWT_SECRET, authenticateToken } from './server/middleware/auth.ts';
 import { securityGuard, loadBlockedIPs, startSecurityCleanup } from './server/middleware/security.ts';
 import { planAiRateLimiter } from './server/middleware/planRateLimit.ts';
@@ -169,6 +170,7 @@ async function startServer() {
     next();
   }, translateRoutes);
   app.use('/api/google', googleRoutes);
+  app.use('/api/email', emailRoutes);
 
   app.get('/api/health', async (_req, res) => {
     try {

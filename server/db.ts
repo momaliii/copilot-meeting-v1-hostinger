@@ -447,6 +447,18 @@ function runSqliteSchema(): void {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_scheduled_meetings_bot ON scheduled_meetings(bot_status)`);
   } catch (_) {}
 
+  // Email send log for rate limiting
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS email_send_log (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_email_send_log_user_created ON email_send_log(user_id, created_at)`);
+  } catch (_) {}
+
   const planCount = db.prepare('SELECT COUNT(*) as count FROM plans').get() as { count: number };
   if (planCount.count === 0) {
     db.prepare('INSERT INTO plans (id, name, price, minutes_limit, language_changes_limit) VALUES (?, ?, ?, ?, ?)').run('starter', 'Starter', 0, 60, 2);
@@ -493,7 +505,7 @@ function runSqliteSchema(): void {
 
 async function runPostgresSchema(): Promise<void> {
   if (!pgPool) return;
-  const migrations = ['001_initial_postgres.sql', '002_phase2.sql', '003_support_chat.sql', '004_support_attachments.sql', '005_support_admin.sql', '006_language_changes_limit.sql', '007_announcements_enhancements.sql', '008_support_notes_tags.sql', '009_avatar.sql', '010_email_verification.sql', '011_twofa.sql', '012_announcement_show_on.sql', '013_redirect_rules.sql', '014_signup_fields.sql', '015_promo_codes.sql', '016_contact_submissions.sql', '017_promo_per_user.sql', '018_session_replay.sql', '019_pro_video_plan.sql', '020_plan_features_and_model.sql', '021_transcript_model.sql', '022_tour_events.sql', '023_meetings_media.sql', '024_security_tables.sql', '025_admin_plan.sql', '026_per_user_overrides.sql', '027_plan_expiration.sql', '028_soft_limits.sql', '029_share_expiry.sql', '030_site_settings.sql', '031_google_oauth.sql', '032_scheduled_meetings.sql'];
+  const migrations = ['001_initial_postgres.sql', '002_phase2.sql', '003_support_chat.sql', '004_support_attachments.sql', '005_support_admin.sql', '006_language_changes_limit.sql', '007_announcements_enhancements.sql', '008_support_notes_tags.sql', '009_avatar.sql', '010_email_verification.sql', '011_twofa.sql', '012_announcement_show_on.sql', '013_redirect_rules.sql', '014_signup_fields.sql', '015_promo_codes.sql', '016_contact_submissions.sql', '017_promo_per_user.sql', '018_session_replay.sql', '019_pro_video_plan.sql', '020_plan_features_and_model.sql', '021_transcript_model.sql', '022_tour_events.sql', '023_meetings_media.sql', '024_security_tables.sql', '025_admin_plan.sql', '026_per_user_overrides.sql', '027_plan_expiration.sql', '028_soft_limits.sql', '029_share_expiry.sql', '030_site_settings.sql', '031_google_oauth.sql', '032_scheduled_meetings.sql', '033_email_send_log.sql'];
   const migrationsDir = existsSync(join(__dirname, 'migrations'))
     ? join(__dirname, 'migrations')
     : join(process.cwd(), 'server', 'migrations');

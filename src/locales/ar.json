@@ -266,6 +266,8 @@
     "recipientsRequired": "يرجى إضافة مستلم واحد على الأقل.",
     "emailSent": "تم إرسال البريد الإلكتروني بنجاح!",
     "emailSendFailed": "فشل إرسال البريد الإلكتروني.",
+    "includeMeetingLink": "تضمين رابط تفاصيل الاجتماع",
+    "viewMeetingDetails": "عرض تفاصيل الاجتماع الكاملة:",
     "helpUsImprove": "ساعدنا على التحسين",
     "feedbackPrompt": "هل كان هذا التحليل دقيقاً؟ أخبرنا إذا فات الذكاء الاصطناعي شيئاً أو أخطأ. ملاحظاتك تدرب الذكاء الاصطناعي لاجتماعاتك المستقبلية.",
     "thankYouFeedback": "شكراً! تم إرسال ملاحظاتك لفريقنا لتحسين نموذج الذكاء الاصطناعي.",
@@ -771,6 +773,10 @@
     "securitySummary": "ملخص الأمان",
     "deepgram": "نسخ Deepgram",
     "emailService": "البريد الإلكتروني / SMTP",
+    "emailSmtpDetails": "التحقق + متابعات الاجتماعات · {{perMin}}/دقيقة، {{perDay}}/يوم",
+    "emailSmtpDetailsShort": "التحقق + متابعات الاجتماعات",
+    "googleOAuth": "Google OAuth",
+    "googleOAuthDetails": "Gmail + التقويم",
     "viewSecurityGuard": "عرض حارس الأمان",
     "securityEvents24h": "الأحداث (24 ساعة)",
     "expandSidebar": "توسيع الشريط الجانبي",
@@ -1082,7 +1088,11 @@
     "saveChanges": "حفظ التغييرات",
     "brandingSaved": "تم حفظ إعدادات العلامة التجارية بنجاح.",
     "brandingResetConfirm": "إعادة تعيين جميع إعدادات العلامة التجارية إلى الافتراضي؟ لا يمكن التراجع عن هذا.",
-    "brandingResetDone": "تمت إعادة تعيين إعدادات العلامة التجارية إلى الافتراضي."
+    "brandingResetDone": "تمت إعادة تعيين إعدادات العلامة التجارية إلى الافتراضي.",
+    "emailSmtpLimits": "حدود البريد الإلكتروني / SMTP",
+    "emailSmtpLimitsDesc": "حدود المعدل لرسائل متابعة الاجتماعات المرسلة عبر SMTP. حدود لكل مستخدم.",
+    "emailsPerMinute": "رسائل في الدقيقة",
+    "emailsPerDay": "رسائل في اليوم"
   },
   "error": {
     "title": "حدث خطأ ما",

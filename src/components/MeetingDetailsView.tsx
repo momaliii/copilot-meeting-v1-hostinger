@@ -39,6 +39,7 @@ type MeetingDetailsViewProps = {
   onReanalyze: (language: string) => void;
   onShare: () => void;
   onShareLink?: () => void;
+  onGetShareLink?: () => Promise<string | null>;
   translateDropdownOpen: boolean;
   setTranslateDropdownOpen: (open: boolean) => void;
   reanalyzeDropdownOpen: boolean;
@@ -56,6 +57,7 @@ type MeetingDetailsViewProps = {
   onUpdateTitle?: (id: string, newTitle: string) => Promise<void>;
   scrollToLine?: number;
   googleConnected?: boolean;
+  smtpAvailable?: boolean;
   onRefetchGoogleStatus?: () => void;
 };
 
@@ -75,6 +77,7 @@ export default function MeetingDetailsView({
   onReanalyze,
   onShare,
   onShareLink,
+  onGetShareLink,
   translateDropdownOpen,
   setTranslateDropdownOpen,
   reanalyzeDropdownOpen,
@@ -92,6 +95,7 @@ export default function MeetingDetailsView({
   onUpdateTitle,
   scrollToLine,
   googleConnected = false,
+  smtpAvailable = false,
   onRefetchGoogleStatus,
 }: MeetingDetailsViewProps) {
   const { t } = useTranslation();
@@ -472,8 +476,10 @@ export default function MeetingDetailsView({
         onTabChange={onTabChange}
         meetingTitle={meetingTitle}
         googleConnected={googleConnected}
+        smtpAvailable={smtpAvailable}
         onSendViaGmail={handleSendViaGmail}
         onRefetchGoogleStatus={onRefetchGoogleStatus}
+        onGetShareLink={onGetShareLink}
         showBadges={true}
         onActionItemToggle={onActionItemToggle}
         onSpeakerRename={onSpeakerRename}

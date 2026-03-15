@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, RotateCcw, Save, Mic, Loader2, Trash2 } from 'lucide-react';
+import { Upload, RotateCcw, Save, Mic, Loader2, Trash2, Mail } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
 type Settings = {
@@ -8,6 +8,8 @@ type Settings = {
   theme_color: string;
   logo_url: string | null;
   favicon_url: string | null;
+  smtp_send_rate_limit_per_minute?: string;
+  smtp_send_rate_limit_per_day?: string;
 };
 
 const DEFAULTS: Settings = {
@@ -16,6 +18,8 @@ const DEFAULTS: Settings = {
   theme_color: '#4f46e5',
   logo_url: null,
   favicon_url: null,
+  smtp_send_rate_limit_per_minute: '5',
+  smtp_send_rate_limit_per_day: '20',
 };
 
 export default function AdminBrandingView({ token, t }: { token: string | null; t: TFunction }) {
@@ -281,6 +285,39 @@ export default function AdminBrandingView({ token, t }: { token: string | null; 
             </div>
           </div>
           <p className="text-xs text-slate-400 mt-2">{t('admin.faviconHint')}</p>
+        </div>
+
+        {/* Email / SMTP Limits */}
+        <div className="p-5">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-3">
+            <Mail className="w-4 h-4" />
+            {t('admin.emailSmtpLimits')}
+          </h3>
+          <p className="text-xs text-slate-500 mb-4">{t('admin.emailSmtpLimitsDesc')}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1">{t('admin.emailsPerMinute')}</label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={draft.smtp_send_rate_limit_per_minute ?? '5'}
+                onChange={(e) => setDraft({ ...draft, smtp_send_rate_limit_per_minute: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1">{t('admin.emailsPerDay')}</label>
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={draft.smtp_send_rate_limit_per_day ?? '20'}
+                onChange={(e) => setDraft({ ...draft, smtp_send_rate_limit_per_day: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

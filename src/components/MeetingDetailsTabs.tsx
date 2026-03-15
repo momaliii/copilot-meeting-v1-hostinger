@@ -17,8 +17,10 @@ type MeetingDetailsTabsProps = {
   onTabChange: (tab: TabId) => void;
   meetingTitle?: string;
   googleConnected?: boolean;
+  smtpAvailable?: boolean;
   onSendViaGmail?: (subject: string, body: string) => void;
   onRefetchGoogleStatus?: () => void;
+  onGetShareLink?: () => Promise<string | null>;
   showBadges?: boolean;
   onActionItemToggle?: (index: number, completed: boolean) => void;
   onSpeakerRename?: (original: string, newName: string) => void;
@@ -34,16 +36,20 @@ type MeetingDetailsTabsProps = {
 function buildEmailBody(
   template: EmailTemplate,
   analysis: AnalysisResult,
-  t: (key: string) => string
+  t: (key: string) => string,
+  shareLink?: string | null
 ): string {
+  let body: string;
   switch (template) {
     case 'followUp':
-      return analysis.followUpEmail || '';
+      body = analysis.followUpEmail || '';
+      break;
     case 'actionItems': {
       const items = (analysis.actionItems ?? [])
         .map((a) => `- ${a.task}${a.assignee ? ` (${a.assignee})` : ''}`)
         .join('\n');
-      return `${analysis.summary}\n\n${t('meeting.actionItems')}:\n${items || t('meeting.noActionItems')}`;
+      body = `${analysis.summary}\n\n${t('meeting.actionItems')}:\n${items || t('meeting.noActionItems')}`;
+      break;
     }
     case 'fullMeeting': {
       const items = (analysis.actionItems ?? [])
@@ -52,11 +58,16 @@ function buildEmailBody(
       const decisions = (analysis.keyDecisions ?? [])
         .map((d) => `- ${typeof d === 'string' ? d : (d as { decision?: string }).decision || ''}`)
         .join('\n');
-      return `${analysis.summary}\n\n${t('meeting.keyDecisions')}:\n${decisions || '-'}\n\n${t('meeting.actionItems')}:\n${items || t('meeting.noActionItems')}`;
+      body = `${analysis.summary}\n\n${t('meeting.keyDecisions')}:\n${decisions || '-'}\n\n${t('meeting.actionItems')}:\n${items || t('meeting.noActionItems')}`;
+      break;
     }
     default:
-      return analysis.followUpEmail || '';
+      body = analysis.followUpEmail || '';
   }
+  if (shareLink) {
+    body += `\n\n${t('meeting.viewMeetingDetails')}\n${shareLink}`;
+  }
+  return body;
 }
 
 export default function MeetingDetailsTabs({
@@ -65,8 +76,10 @@ export default function MeetingDetailsTabs({
   onTabChange,
   meetingTitle = 'Meeting',
   googleConnected = false,
+  smtpAvailable = false,
   onSendViaGmail,
   onRefetchGoogleStatus,
+  onGetShareLink,
   showBadges = false,
   onActionItemToggle,
   onSpeakerRename,
@@ -82,6 +95,7 @@ export default function MeetingDetailsTabs({
   const { token } = useAuth();
   const [recipients, setRecipients] = useState('');
   const [emailTemplate, setEmailTemplate] = useState<EmailTemplate>('followUp');
+  const [includeMeetingLink, setIncludeMeetingLink] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [sendToast, setSendToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const transcriptTurnCount = useMemo(() => {
@@ -405,7 +419,7 @@ export default function MeetingDetailsTabs({
 
         {activeTab === 'email' && (
           <div id="panel-email" role="tabpanel" aria-labelledby="tab-email" className="animate-in fade-in space-y-4">
-            {googleConnected && (
+            {(googleConnected || smtpAvailable) && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t('meeting.emailTemplate')}</label>
@@ -431,6 +445,17 @@ export default function MeetingDetailsTabs({
                 </div>
               </div>
             )}
+            {onGetShareLink && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeMeetingLink}
+                  onChange={(e) => setIncludeMeetingLink(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-sm text-slate-700">{t('meeting.includeMeetingLink')}</span>
+              </label>
+            )}
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
               <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center gap-2">
                 <div className="flex gap-1.5">
@@ -442,7 +467,7 @@ export default function MeetingDetailsTabs({
               </div>
               <div className="p-6">
                 <div className="whitespace-pre-wrap text-slate-700 font-sans leading-relaxed">
-                  {buildEmailBody(emailTemplate, analysis, t)}
+                  {buildEmailBody(emailTemplate, analysis, t, includeMeetingLink ? undefined : null)}
                 </div>
               </div>
               <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col-reverse sm:flex-row justify-end gap-2">
@@ -455,13 +480,22 @@ export default function MeetingDetailsTabs({
                           : emailTemplate === 'actionItems'
                             ? `Action items: ${meetingTitle}`
                             : `Meeting notes: ${meetingTitle}`;
-                      const body = buildEmailBody(emailTemplate, analysis, t);
+                      let shareLink: string | null = null;
+                      if (includeMeetingLink && onGetShareLink) {
+                        try {
+                          shareLink = await onGetShareLink();
+                        } catch {
+                          // ignore - send without link
+                        }
+                      }
+                      const body = buildEmailBody(emailTemplate, analysis, t, shareLink);
 
-                      if (googleConnected) {
-                        const toList = recipients
-                          .split(/[,;]/)
-                          .map((e) => e.trim())
-                          .filter(Boolean);
+                      const toList = recipients
+                        .split(/[,;]/)
+                        .map((e) => e.trim())
+                        .filter(Boolean);
+
+                      if (googleConnected || smtpAvailable) {
                         if (toList.length === 0) {
                           setSendToast({ message: t('meeting.recipientsRequired'), type: 'error' });
                           setTimeout(() => setSendToast(null), 3000);
@@ -471,7 +505,8 @@ export default function MeetingDetailsTabs({
                         try {
                           const headers: Record<string, string> = { 'Content-Type': 'application/json' };
                           if (token) headers.Authorization = `Bearer ${token}`;
-                          const res = await fetch('/api/google/gmail/send', {
+                          const apiUrl = googleConnected ? '/api/google/gmail/send' : '/api/email/send';
+                          const res = await fetch(apiUrl, {
                             method: 'POST',
                             headers,
                             credentials: 'include',
@@ -505,7 +540,17 @@ export default function MeetingDetailsTabs({
                   </button>
                 )}
                 <button
-                  onClick={() => navigator.clipboard.writeText(buildEmailBody(emailTemplate, analysis, t))}
+                  onClick={async () => {
+                    let shareLink: string | null = null;
+                    if (includeMeetingLink && onGetShareLink) {
+                      try {
+                        shareLink = await onGetShareLink();
+                      } catch {
+                        // ignore
+                      }
+                    }
+                    navigator.clipboard.writeText(buildEmailBody(emailTemplate, analysis, t, shareLink));
+                  }}
                   className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm min-h-[44px] sm:min-h-0"
                 >
                   {t('meeting.copyToClipboard')}
