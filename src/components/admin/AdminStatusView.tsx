@@ -46,6 +46,9 @@ export type SystemStatus = {
   securitySummary: {
     blockedIPs: number;
     events24h: number;
+    failedLogins24h?: number;
+    blockedRequests24h?: number;
+    suspiciousPatterns24h?: number;
   };
 };
 
@@ -324,15 +327,38 @@ export default function AdminStatusView({ status, loading, lastUpdated, onRefres
             <ExternalLink className="w-3 h-3" />
           </button>
         </div>
-        <div className="flex gap-8">
+        <div className="flex flex-wrap gap-6 sm:gap-8">
           <div>
             <p className="text-2xl font-bold text-slate-800">{status.securitySummary.blockedIPs}</p>
             <p className="text-xs text-slate-500">{t('admin.blockedIPs', 'Blocked IPs')}</p>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-800">{status.securitySummary.events24h}</p>
-            <p className="text-xs text-slate-500">{t('admin.securityEvents24h', 'Events (24h)')}</p>
-          </div>
+          {status.securitySummary.failedLogins24h !== undefined && (
+            <div>
+              <p className="text-2xl font-bold text-slate-800">{status.securitySummary.failedLogins24h}</p>
+              <p className="text-xs text-slate-500">{t('admin.failedLogins', 'Failed Logins')}</p>
+              <p className="text-[10px] text-slate-400">{t('admin.last24h', 'Last 24h')}</p>
+            </div>
+          )}
+          {status.securitySummary.blockedRequests24h !== undefined && (
+            <div>
+              <p className="text-2xl font-bold text-slate-800">{status.securitySummary.blockedRequests24h}</p>
+              <p className="text-xs text-slate-500">{t('admin.blockedRequests', 'Blocked Requests')}</p>
+              <p className="text-[10px] text-slate-400">{t('admin.last24h', 'Last 24h')}</p>
+            </div>
+          )}
+          {status.securitySummary.suspiciousPatterns24h !== undefined && (
+            <div>
+              <p className="text-2xl font-bold text-slate-800">{status.securitySummary.suspiciousPatterns24h}</p>
+              <p className="text-xs text-slate-500">{t('admin.suspiciousPatterns', 'Suspicious Patterns')}</p>
+              <p className="text-[10px] text-slate-400">{t('admin.last24h', 'Last 24h')}</p>
+            </div>
+          )}
+          {(status.securitySummary.failedLogins24h === undefined && status.securitySummary.blockedRequests24h === undefined && status.securitySummary.suspiciousPatterns24h === undefined) && (
+            <div>
+              <p className="text-2xl font-bold text-slate-800">{status.securitySummary.events24h}</p>
+              <p className="text-xs text-slate-500">{t('admin.securityEvents24h', 'Events (24h)')}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

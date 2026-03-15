@@ -6,7 +6,7 @@ import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { JWT_SECRET } from '../middleware/auth.ts';
 import { getAdminPermissions } from '../permissions.ts';
-import { isAccountLocked, recordLoginAttempt, logSecurityEvent, getClientIP } from '../middleware/security.ts';
+import { isAccountLocked, isIPLoginLocked, maybeAutoBlockIPAfterFailedLogins, recordLoginAttempt, logSecurityEvent, getClientIP } from '../middleware/security.ts';
 import { getUserEffectivePlan } from '../utils/planLimits.ts';
 
 const router = Router();
@@ -73,6 +73,13 @@ router.post('/login', loginLimiter, async (req, res) => {
     const { email, password } = loginSchema.parse(req.body);
     const ip = getClientIP(req);
 
+    const ipLockStatus = await isIPLoginLocked(ip);
+    if (ipLockStatus.locked) {
+      const minutes = Math.ceil(ipLockStatus.remainingMs / 60000);
+      await logSecurityEvent('account_locked', ip, null, '/api/auth/login', `IP lockout: ${ipLockStatus.failCount} failed attempts`);
+      return res.status(429).json({ error: `Too many failed login attempts from this IP. Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.` });
+    }
+
     const lockStatus = await isAccountLocked(email, ip);
     if (lockStatus.locked) {
       const minutes = Math.ceil(lockStatus.remainingMs / 60000);
@@ -132,6 +139,12 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     await recordLoginAttempt(email, ip, false);
     await logSecurityEvent('failed_login', ip, null, '/api/auth/login', `Failed login: ${email}`);
+    const ipLockAfter = await isIPLoginLocked(ip);
+    await maybeAutoBlockIPAfterFailedLogins(ip, ipLockAfter.failCount);
+    if (ipLockAfter.locked) {
+      const minutes = Math.ceil(ipLockAfter.remainingMs / 60000);
+      return res.status(429).json({ error: `Too many failed login attempts from this IP. Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.` });
+    }
     res.status(401).json({ error: 'Invalid credentials' });
   } catch (err: any) {
     if (err instanceof z.ZodError) {

@@ -22,7 +22,7 @@ import { isTranscribeAvailable, createTranscribeWebSocketServer } from './server
 import googleRoutes from './server/routes/google.ts';
 import emailRoutes from './server/routes/email.ts';
 import { JWT_SECRET, authenticateToken } from './server/middleware/auth.ts';
-import { securityGuard, loadBlockedIPs, startSecurityCleanup } from './server/middleware/security.ts';
+import { securityGuard, loadBlockedIPs, startSecurityCleanup, startBlocklistSync } from './server/middleware/security.ts';
 import { planAiRateLimiter } from './server/middleware/planRateLimit.ts';
 
 async function startServer() {
@@ -31,6 +31,11 @@ async function startServer() {
   const server = http.createServer(app);
 
   const isDev = process.env.NODE_ENV !== 'production';
+
+  // Trust proxy when behind nginx/Cloudflare etc. (set TRUST_PROXY=true)
+  if (process.env.TRUST_PROXY === 'true') {
+    app.set('trust proxy', 1);
+  }
 
   app.use(helmet({
     contentSecurityPolicy: isDev ? false : {
@@ -149,6 +154,7 @@ async function startServer() {
   await loadBlockedIPs();
   app.use('/api', securityGuard);
   startSecurityCleanup();
+  if (startBlocklistSync()) console.log('[server] Blocklist sync enabled');
   startPlanExpirationScheduler();
 
   // API Routes

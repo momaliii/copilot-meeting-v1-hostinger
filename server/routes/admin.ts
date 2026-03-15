@@ -10,7 +10,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth.ts';
 import { getAdminPermissions } from '../permissions.ts';
-import { blockIP, unblockIP, logSecurityEvent, getClientIP } from '../middleware/security.ts';
+import { blockIP, unblockIP, logSecurityEvent, getClientIP, adminAllowlistMiddleware } from '../middleware/security.ts';
 
 const brandingDir = join(process.cwd(), 'uploads/branding');
 if (!existsSync(brandingDir)) mkdirSync(brandingDir, { recursive: true });
@@ -126,6 +126,7 @@ const generateRuleFromFeedback = async (comment: string): Promise<string | null>
 
 router.use(authenticateToken);
 router.use(adminMiddleware);
+router.use(adminAllowlistMiddleware);
 
 router.get('/permissions', (req: any, res) => {
   res.json({ permissions: req.permissions });
@@ -144,7 +145,7 @@ router.get('/status', requirePermission('viewAnalytics'), async (req, res) => {
   const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   let storage = { users: 0, meetings: 0, sessions: 0, feedback: 0 };
-  let securitySummary = { blockedIPs: 0, events24h: 0 };
+  let securitySummary = { blockedIPs: 0, events24h: 0, failedLogins24h: 0, blockedRequests24h: 0, suspiciousPatterns24h: 0 };
   let smtpRateLimits = { perMinute: 5, perDay: 20 };
   try {
     const settingsRows = (await db.query('SELECT key, value FROM site_settings')).rows;
@@ -170,13 +171,23 @@ router.get('/status', requirePermission('viewAnalytics'), async (req, res) => {
     };
   } catch (_) {}
   try {
-    const [blockedRow, eventsRow] = await Promise.all([
+    const [
+      blockedRow,
+      failedLoginsRow,
+      blockedRequestsRow,
+      suspiciousPatternsRow,
+    ] = await Promise.all([
       db.queryOne('SELECT COUNT(*) as count FROM blocked_ips'),
-      db.queryOne('SELECT COUNT(*) as count FROM security_events WHERE created_at >= ?', [last24h]),
+      db.queryOne('SELECT COUNT(*) as count FROM security_events WHERE event_type = ? AND created_at >= ?', ['failed_login', last24h]),
+      db.queryOne('SELECT COUNT(*) as count FROM security_events WHERE event_type = ? AND created_at >= ?', ['blocked_request', last24h]),
+      db.queryOne('SELECT COUNT(*) as count FROM security_events WHERE event_type = ? AND created_at >= ?', ['suspicious_pattern', last24h]),
     ]);
     securitySummary = {
       blockedIPs: Number(blockedRow?.count ?? 0),
-      events24h: Number(eventsRow?.count ?? 0),
+      events24h: Number(failedLoginsRow?.count ?? 0) + Number(blockedRequestsRow?.count ?? 0) + Number(suspiciousPatternsRow?.count ?? 0),
+      failedLogins24h: Number(failedLoginsRow?.count ?? 0),
+      blockedRequests24h: Number(blockedRequestsRow?.count ?? 0),
+      suspiciousPatterns24h: Number(suspiciousPatternsRow?.count ?? 0),
     };
   } catch (_) {}
 
@@ -1699,7 +1710,7 @@ router.get('/security/blocked-ips', requirePermission('viewAuditLogs'), async (r
 });
 
 const blockIPSchema = z.object({
-  ip: z.string().min(1).max(45),
+  ip: z.string().min(1).max(50), // IP or CIDR (e.g. 192.168.0.0/24)
   reason: z.string().max(500).optional(),
 });
 
@@ -1711,6 +1722,7 @@ router.post('/security/block-ip', requirePermission('manageUsers'), async (req: 
     res.json({ success: true });
   } catch (err: any) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.issues[0].message });
+    if (err?.message === 'Invalid IP address' || err?.message === 'Invalid IP address or CIDR') return res.status(400).json({ error: err.message });
     console.error(err);
     res.status(500).json({ error: 'Failed to block IP' });
   }
@@ -1743,7 +1755,7 @@ router.get('/security/stats', requirePermission('viewAuditLogs'), async (req: an
       eventsByType,
     ] = await Promise.all([
       db.queryOne('SELECT COUNT(*) as count FROM security_events WHERE event_type = ? AND created_at >= ?', ['failed_login', last24h]),
-      db.queryOne('SELECT COUNT(*) as count FROM security_events WHERE event_type = ? AND created_at >= ?', ['ip_blocked', last24h]),
+      db.queryOne('SELECT COUNT(*) as count FROM security_events WHERE event_type = ? AND created_at >= ?', ['blocked_request', last24h]),
       db.queryOne('SELECT COUNT(*) as count FROM security_events WHERE event_type = ? AND created_at >= ?', ['suspicious_pattern', last24h]),
       db.queryOne('SELECT COUNT(*) as count FROM blocked_ips'),
       db.query('SELECT ip_address, COUNT(*) as count FROM security_events WHERE created_at >= ? AND ip_address IS NOT NULL GROUP BY ip_address ORDER BY count DESC LIMIT 10', [last7d]),

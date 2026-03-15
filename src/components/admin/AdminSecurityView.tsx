@@ -84,6 +84,22 @@ const EVENT_TYPE_STYLES: Record<string, string> = {
 
 const EVENT_TYPES = ['failed_login', 'suspicious_pattern', 'ip_blocked', 'account_locked', 'blocked_request'];
 
+// IPv4 or IPv6 validation (supports CIDR when server supports it)
+function isValidIPOrCIDR(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  const cidrMatch = trimmed.match(/^(.+)\/(\d+)$/);
+  const toValidate = cidrMatch ? cidrMatch[1] : trimmed;
+  const ipv4 = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$/;
+  const ipv6 = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$/;
+  if (!ipv4.test(toValidate) && !ipv6.test(toValidate)) return false;
+  if (cidrMatch) {
+    const prefix = parseInt(cidrMatch[2], 10);
+    return prefix >= 0 && prefix <= 128;
+  }
+  return true;
+}
+
 export default function AdminSecurityView({
   stats,
   events,
@@ -115,9 +131,15 @@ export default function AdminSecurityView({
   const [blockIPValue, setBlockIPValue] = useState('');
   const [blockReasonValue, setBlockReasonValue] = useState('');
   const [blockLoading, setBlockLoading] = useState(false);
+  const [blockIPError, setBlockIPError] = useState<string | null>(null);
 
   const handleBlockSubmit = async () => {
     if (!blockIPValue.trim()) return;
+    if (!isValidIPOrCIDR(blockIPValue.trim())) {
+      setBlockIPError('Invalid IP address or CIDR format');
+      return;
+    }
+    setBlockIPError(null);
     setBlockLoading(true);
     try {
       await onBlockIP(blockIPValue.trim(), blockReasonValue.trim());
@@ -209,10 +231,14 @@ export default function AdminSecurityView({
                 <input
                   type="text"
                   value={blockIPValue}
-                  onChange={(e) => setBlockIPValue(e.target.value)}
-                  placeholder="e.g. 192.168.1.100"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  onChange={(e) => {
+                    setBlockIPValue(e.target.value);
+                    setBlockIPError(null);
+                  }}
+                  placeholder="e.g. 192.168.1.100 or 10.0.0.0/24"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${blockIPError ? 'border-red-500' : 'border-slate-200'}`}
                 />
+                {blockIPError && <p className="text-xs text-red-600 mt-1">{blockIPError}</p>}
               </div>
               <div className="flex-1">
                 <label className="block text-xs font-medium text-slate-500 mb-1">{t('admin.reason')}</label>
@@ -226,7 +252,7 @@ export default function AdminSecurityView({
               </div>
               <button
                 onClick={handleBlockSubmit}
-                disabled={blockLoading || !blockIPValue.trim()}
+                disabled={blockLoading || !blockIPValue.trim() || !isValidIPOrCIDR(blockIPValue.trim())}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors whitespace-nowrap"
               >
                 {blockLoading ? '...' : t('admin.blockIP')}
