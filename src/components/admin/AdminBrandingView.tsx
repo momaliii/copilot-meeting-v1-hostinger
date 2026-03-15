@@ -10,7 +10,6 @@ type Settings = {
   favicon_url: string | null;
   smtp_send_rate_limit_per_minute?: string;
   smtp_send_rate_limit_per_day?: string;
-  meeting_details_design_v2?: string;
 };
 
 const DEFAULTS: Settings = {
@@ -21,7 +20,6 @@ const DEFAULTS: Settings = {
   favicon_url: null,
   smtp_send_rate_limit_per_minute: '5',
   smtp_send_rate_limit_per_day: '20',
-  meeting_details_design_v2: '0',
 };
 
 export default function AdminBrandingView({ token, t }: { token: string | null; t: TFunction }) {
@@ -287,32 +285,6 @@ export default function AdminBrandingView({ token, t }: { token: string | null; 
             </div>
           </div>
           <p className="text-xs text-slate-400 mt-2">{t('admin.faviconHint')}</p>
-        </div>
-
-        {/* Feature Flags */}
-        <div className="p-5">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-3">
-            {t('admin.featureFlags')}
-          </h3>
-            <label className="flex items-center justify-between gap-4 cursor-pointer">
-            <span className="text-sm text-slate-600">{t('admin.meetingDetailsDesignV2')}</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={(draft.meeting_details_design_v2 ?? '0') === '1'}
-              onClick={() => setDraft({ ...draft, meeting_details_design_v2: (draft.meeting_details_design_v2 ?? '0') === '1' ? '0' : '1' })}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                (draft.meeting_details_design_v2 ?? '0') === '1' ? 'bg-indigo-600' : 'bg-slate-200'
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${
-                  (draft.meeting_details_design_v2 ?? '0') === '1' ? 'translate-x-5' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </label>
-          <p className="text-xs text-slate-500 mt-1">{t('admin.meetingDetailsDesignV2Desc')}</p>
         </div>
 
         {/* Email / SMTP Limits */}

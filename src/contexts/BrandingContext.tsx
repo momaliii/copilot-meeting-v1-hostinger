@@ -6,7 +6,6 @@ type Branding = {
   themeColor: string;
   logoUrl: string | null;
   faviconUrl: string | null;
-  meetingDetailsDesignV2: boolean;
 };
 
 const DEFAULTS: Branding = {
@@ -15,7 +14,6 @@ const DEFAULTS: Branding = {
   themeColor: '#4f46e5',
   logoUrl: null,
   faviconUrl: null,
-  meetingDetailsDesignV2: false,
 };
 
 const BrandingContext = createContext<Branding>(DEFAULTS);
@@ -38,7 +36,6 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
             themeColor: data.theme_color || DEFAULTS.themeColor,
             logoUrl: data.logo_url || null,
             faviconUrl: data.favicon_url || null,
-            meetingDetailsDesignV2: data.meeting_details_design_v2 === '1' || data.meeting_details_design_v2 === 'true',
           });
         }
       })

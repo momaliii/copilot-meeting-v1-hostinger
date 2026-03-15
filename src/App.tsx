@@ -24,8 +24,6 @@ import ProfileView from './components/ProfileView';
 import AdminDashboard from './AdminDashboard';
 import AnnouncementBar from './components/AnnouncementBar';
 import MeetingDetailsView from './components/MeetingDetailsView';
-import { MeetingDetailsViewV2 } from './components/meeting-details-v2';
-import { useMeetingDetailsDesign } from './hooks/useMeetingDetailsDesign';
 import MeetingHistoryView from './components/MeetingHistoryView';
 import SupportView from './components/SupportView';
 import PlanDowngradePopup from './components/PlanDowngradePopup';
@@ -128,7 +126,6 @@ export default function App() {
   const [showSupportChat, setShowSupportChat] = useState(false);
   const [showScheduleView, setShowScheduleView] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 768px)');
-  const meetingDetailsDesign = useMeetingDetailsDesign();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -3138,11 +3135,7 @@ export default function App() {
                 }
               }
             };
-            return meetingDetailsDesign === 'v2' ? (
-              <MeetingDetailsViewV2 {...meetingDetailsProps} />
-            ) : (
-              <MeetingDetailsView {...meetingDetailsProps} />
-            );
+            return <MeetingDetailsView {...meetingDetailsProps} />;
           })()}
           </div>
         </main>

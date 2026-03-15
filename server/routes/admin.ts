@@ -1788,7 +1788,6 @@ const SETTINGS_DEFAULTS: Record<string, string | null> = {
   favicon_url: null,
   smtp_send_rate_limit_per_minute: '5',
   smtp_send_rate_limit_per_day: '20',
-  meeting_details_design_v2: '0',
 };
 
 router.get('/settings', async (_req: any, res) => {
@@ -1813,7 +1812,6 @@ router.put('/settings', async (req: any, res) => {
       favicon_url: z.string().max(500).nullable().optional(),
       smtp_send_rate_limit_per_minute: z.coerce.number().min(1).max(60).optional(),
       smtp_send_rate_limit_per_day: z.coerce.number().min(1).max(200).optional(),
-      meeting_details_design_v2: z.enum(['0', '1']).optional(),
     });
     const data = schema.parse(req.body);
 
