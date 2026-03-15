@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { google } from 'googleapis';
 import crypto from 'crypto';
 import db from '../db.ts';
@@ -37,7 +37,7 @@ const gmailSendLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many emails sent. Please try again in a minute.' },
-  keyGenerator: (req: any) => req.user?.id || req.ip,
+  keyGenerator: (req: any) => req.user?.id || ipKeyGenerator(req.ip),
 });
 
 const router = Router();
