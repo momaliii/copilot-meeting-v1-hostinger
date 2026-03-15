@@ -24,6 +24,8 @@ import ProfileView from './components/ProfileView';
 import AdminDashboard from './AdminDashboard';
 import AnnouncementBar from './components/AnnouncementBar';
 import MeetingDetailsView from './components/MeetingDetailsView';
+import { MeetingDetailsViewV2 } from './components/meeting-details-v2';
+import { useMeetingDetailsDesign } from './hooks/useMeetingDetailsDesign';
 import MeetingHistoryView from './components/MeetingHistoryView';
 import SupportView from './components/SupportView';
 import PlanDowngradePopup from './components/PlanDowngradePopup';
@@ -126,6 +128,7 @@ export default function App() {
   const [showSupportChat, setShowSupportChat] = useState(false);
   const [showScheduleView, setShowScheduleView] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 768px)');
+  const meetingDetailsDesign = useMeetingDetailsDesign();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -2992,27 +2995,27 @@ export default function App() {
             </div>
           )}
 
-          {analysis && (
-            <MeetingDetailsView
-              meeting={currentMeetingId ? meetings.find(m => m.id === currentMeetingId) ?? null : null}
-              analysis={analysis}
-              audioUrl={audioUrl}
-              videoUrl={videoUrl}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              languageOptions={LANGUAGE_OPTIONS}
-              user={user}
-              usage={usage}
-              googleConnected={googleConnected}
-              smtpAvailable={smtpAvailable}
-              onRefetchGoogleStatus={fetchGoogleStatus}
-              isReanalyzing={isReanalyzing}
-              isSharing={isSharing}
-              onTranslate={reanalyzeMeetingInLanguage}
-              onReanalyze={reanalyzeMeeting}
-              onShareLink={(user?.plan_features?.cloud_save || user?.role === 'admin') && cloudSaveEnabled ? handleShare : undefined}
-              onGetShareLink={(user?.plan_features?.cloud_save || user?.role === 'admin') && cloudSaveEnabled ? getShareLink : undefined}
-              onShare={async () => {
+          {analysis && (() => {
+            const meetingDetailsProps = {
+              meeting: currentMeetingId ? meetings.find(m => m.id === currentMeetingId) ?? null : null,
+              analysis,
+              audioUrl,
+              videoUrl,
+              activeTab,
+              onTabChange: setActiveTab,
+              languageOptions: LANGUAGE_OPTIONS,
+              user,
+              usage,
+              googleConnected,
+              smtpAvailable,
+              onRefetchGoogleStatus: fetchGoogleStatus,
+              isReanalyzing,
+              isSharing,
+              onTranslate: reanalyzeMeetingInLanguage,
+              onReanalyze: reanalyzeMeeting,
+              onShareLink: (user?.plan_features?.cloud_save || user?.role === 'admin') && cloudSaveEnabled ? handleShare : undefined,
+              onGetShareLink: (user?.plan_features?.cloud_save || user?.role === 'admin') && cloudSaveEnabled ? getShareLink : undefined,
+              onShare: async () => {
                 if (isSharing) return;
                 setIsSharing(true);
                 const text = `Meeting Summary:\n${analysis.summary}\n\nAction Items:\n${(analysis.actionItems ?? []).map(a => `- ${a.task} (${a.assignee || 'Unassigned'})`).join('\n')}`;
@@ -3041,15 +3044,15 @@ export default function App() {
                     setIsSharing(false);
                   }
                 }
-              }}
-              translateDropdownOpen={translateDropdownOpen}
-              setTranslateDropdownOpen={setTranslateDropdownOpen}
-              reanalyzeDropdownOpen={reanalyzeDropdownOpen}
-              setReanalyzeDropdownOpen={setReanalyzeDropdownOpen}
-              hasAudioBlob={!!meetings.find(m => m.id === currentMeetingId)?.audioBlob || !!meetings.find(m => m.id === currentMeetingId)?.videoBlob}
-              onUpdateTitle={updateMeetingTitle}
-              scrollToLine={scrollToLine}
-              onActionItemToggle={currentMeetingId ? async (index, completed) => {
+              },
+              translateDropdownOpen,
+              setTranslateDropdownOpen,
+              reanalyzeDropdownOpen,
+              setReanalyzeDropdownOpen,
+              hasAudioBlob: !!meetings.find(m => m.id === currentMeetingId)?.audioBlob || !!meetings.find(m => m.id === currentMeetingId)?.videoBlob,
+              onUpdateTitle: updateMeetingTitle,
+              scrollToLine,
+              onActionItemToggle: currentMeetingId ? async (index, completed) => {
                 const meeting = meetings.find(m => m.id === currentMeetingId);
                 if (!meeting) return;
                 const updated = {
@@ -3068,8 +3071,8 @@ export default function App() {
                 } catch (err) {
                   console.error('Failed to update action item', err);
                 }
-              } : undefined}
-              onSpeakerRename={currentMeetingId ? async (original, newName) => {
+              } : undefined,
+              onSpeakerRename: currentMeetingId ? async (original, newName) => {
                 const meeting = meetings.find(m => m.id === currentMeetingId);
                 if (!meeting) return;
                 const updated = {
@@ -3089,8 +3092,8 @@ export default function App() {
                 } catch (err) {
                   console.error('Failed to update speaker name', err);
                 }
-              } : undefined}
-              onTranscriptEdit={currentMeetingId ? async (newTranscript) => {
+              } : undefined,
+              onTranscriptEdit: currentMeetingId ? async (newTranscript) => {
                 const meeting = meetings.find(m => m.id === currentMeetingId);
                 if (!meeting) return;
                 const updated = {
@@ -3107,13 +3110,13 @@ export default function App() {
                 } catch (err) {
                   console.error('Failed to update transcript', err);
                 }
-              } : undefined}
-              feedbackRating={feedbackRating}
-              setFeedbackRating={setFeedbackRating}
-              feedbackComment={feedbackComment}
-              setFeedbackComment={setFeedbackComment}
-              feedbackSubmitted={feedbackSubmitted}
-              onFeedbackSubmit={async () => {
+              } : undefined,
+              feedbackRating,
+              setFeedbackRating,
+              feedbackComment,
+              setFeedbackComment,
+              feedbackSubmitted,
+              onFeedbackSubmit: async () => {
                 if (!feedbackRating) return alert('Please select a rating');
                 try {
                   const token = localStorage.getItem('token');
@@ -3133,9 +3136,14 @@ export default function App() {
                 } catch (e) {
                   alert('Failed to submit feedback');
                 }
-              }}
-            />
-          )}
+              }
+            };
+            return meetingDetailsDesign === 'v2' ? (
+              <MeetingDetailsViewV2 {...meetingDetailsProps} />
+            ) : (
+              <MeetingDetailsView {...meetingDetailsProps} />
+            );
+          })()}
           </div>
         </main>
       </div>

@@ -19,6 +19,7 @@ type Props = {
   onClearFilter: () => void;
   onRenameSpeaker?: (original: string, newName: string) => void;
   onCopySpeakerTranscript: (speaker: string) => void;
+  variant?: 'default' | 'minimal';
 };
 
 export default function SpeakerLegend({
@@ -31,6 +32,7 @@ export default function SpeakerLegend({
   onClearFilter,
   onRenameSpeaker,
   onCopySpeakerTranscript,
+  variant = 'default',
 }: Props) {
   const { t } = useTranslation();
   const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
@@ -76,10 +78,10 @@ export default function SpeakerLegend({
               <>
                 <button
                   onClick={() => onToggleSpeaker(speaker)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${color.bg} ${color.text} border-current/20 ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-1' : 'hover:opacity-90'}`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${variant === 'minimal' ? `bg-slate-50 ${color.text} ${isSelected ? 'ring-2 ring-indigo-400 ring-offset-1' : 'hover:bg-slate-100'}` : `border ${color.bg} ${color.text} border-current/20 ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-1' : 'hover:opacity-90'}`}`}
                   title={t('meeting.filterBySpeaker')}
                 >
-                  <span className={`w-5 h-5 rounded-full ${color.avatar} flex items-center justify-center text-[10px] font-bold shrink-0`}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${variant === 'minimal' ? `bg-slate-100 ${color.text}` : color.avatar}`}>
                     {displayName.charAt(0).toUpperCase()}
                   </span>
                   {displayName}

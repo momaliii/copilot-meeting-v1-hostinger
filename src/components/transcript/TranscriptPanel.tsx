@@ -19,6 +19,8 @@ const SPEAKER_COLORS: SpeakerColor[] = [
   { border: 'border-l-cyan-400', text: 'text-cyan-700', bg: 'bg-cyan-50/40', avatar: 'bg-cyan-100 text-cyan-700' },
 ];
 
+export type TranscriptPanelVariant = 'default' | 'minimal';
+
 type TranscriptPanelProps = {
   analysis: AnalysisResult;
   meetingTitle: string;
@@ -29,6 +31,7 @@ type TranscriptPanelProps = {
   scrollToLine?: number;
   onSpeakerRename?: (original: string, newName: string) => void;
   onTranscriptEdit?: (newTranscript: string) => void;
+  variant?: TranscriptPanelVariant;
 };
 
 export default function TranscriptPanel({
@@ -41,6 +44,7 @@ export default function TranscriptPanel({
   scrollToLine,
   onSpeakerRename,
   onTranscriptEdit,
+  variant = 'default',
 }: TranscriptPanelProps) {
   const { t } = useTranslation();
 
@@ -375,6 +379,7 @@ export default function TranscriptPanel({
         displayName={seg.speaker ? getDisplayName(seg.speaker) : ''}
         color={color}
         viewMode={viewMode}
+        variant={variant}
         isCurrent={seg.index === currentSegmentIndex}
         isFocused={focusedIndex !== null && filteredIdx === focusedIndex}
         isEditing={editingIndex === seg.index}
@@ -390,7 +395,7 @@ export default function TranscriptPanel({
         onShowToast={showToast}
       />
     );
-  }, [search, matchIndices, currentMatchIndex, getSpeakerColor, getDisplayName, viewMode, currentSegmentIndex, focusedIndex, editingIndex, hasAudioOrVideo, seekTo, copyLinkToLine, showToast, handleEditSave]);
+  }, [search, matchIndices, currentMatchIndex, getSpeakerColor, getDisplayName, viewMode, variant, currentSegmentIndex, focusedIndex, editingIndex, hasAudioOrVideo, seekTo, copyLinkToLine, showToast, handleEditSave]);
 
   return (
     <div className="relative" ref={containerRef} tabIndex={-1} onKeyDown={handleKeyDown} style={{ outline: 'none' }}>
@@ -401,8 +406,9 @@ export default function TranscriptPanel({
       )}
 
       <div className="space-y-4">
-        <div className="sticky top-0 z-10 bg-white py-3 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 border-b border-slate-200 space-y-3">
+        <div className={`sticky top-0 z-10 bg-white py-3 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 space-y-3 ${variant === 'minimal' ? 'border-b border-slate-100' : 'border-b border-slate-200'}`}>
           <TranscriptToolbar
+            variant={variant}
             search={search}
             onSearchChange={(v) => { setSearch(v); setFocusedIndex(null); }}
             matchCount={matchIndices.length}
@@ -420,12 +426,14 @@ export default function TranscriptPanel({
             hasAudio={hasDuration}
           />
           <TranscriptStatsBar
+            variant={variant}
             wordCount={stats.wordCount}
             readingTimeMins={stats.readingTimeMins}
             speakerDistribution={stats.speakerDistribution}
             getDisplayName={getDisplayName}
           />
           <SpeakerLegend
+            variant={variant}
             speakers={speakers}
             selectedSpeakers={selectedSpeakers}
             getDisplayName={getDisplayName}

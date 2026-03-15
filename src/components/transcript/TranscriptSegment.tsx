@@ -21,6 +21,7 @@ type Props = {
   displayName: string;
   color: SpeakerColor;
   viewMode: 'card' | 'compact';
+  variant?: 'default' | 'minimal';
   isCurrent: boolean;
   isFocused: boolean;
   isEditing: boolean;
@@ -52,6 +53,7 @@ export default function TranscriptSegment({
   displayName,
   color,
   viewMode,
+  variant = 'default',
   isCurrent,
   isFocused,
   isEditing,
@@ -145,7 +147,7 @@ export default function TranscriptSegment({
     return (
       <div
         id={`transcript-line-${segment.index}`}
-        className={`group flex items-start gap-2 px-2 py-0.5 rounded hover:bg-slate-50/80 transition-colors ${highlight} ${groupMargin} ${onSeek ? 'cursor-pointer' : ''}`}
+        className={`group flex items-start gap-2 px-2 py-0.5 rounded transition-colors ${variant === 'minimal' ? 'hover:bg-slate-50/50' : 'hover:bg-slate-50/80'} ${highlight} ${groupMargin} ${onSeek ? 'cursor-pointer' : ''}`}
         onClick={onSeek}
         onDoubleClick={(e) => { e.stopPropagation(); onEditStart(); }}
         role={onSeek ? 'button' : undefined}
@@ -163,7 +165,7 @@ export default function TranscriptSegment({
               </div>
             </div>
           ) : (
-            <span className="text-sm leading-snug text-slate-700">
+            <span className={`text-sm ${variant === 'minimal' ? 'leading-relaxed text-slate-600' : 'leading-snug text-slate-700'}`}>
               {segment.isFirstInGroup && segment.speaker && <strong className={`${color.text} mr-1`}>{displayName}:</strong>}
               {highlightText(segment.text, searchQuery, isActiveMatch)}
             </span>
@@ -176,8 +178,10 @@ export default function TranscriptSegment({
 
   // --- Card view ---
   const alignClass = isRight ? 'sm:self-end sm:max-w-[78%]' : 'sm:self-start sm:max-w-[78%]';
-  const borderSide = isRight ? 'border-r-[3px]' : 'border-l-[3px]';
-  const borderColor = isRight ? color.border.replace('border-l-', 'border-r-') : color.border;
+  const borderSide = variant === 'minimal' ? (isRight ? 'border-r-2' : 'border-l-2') : (isRight ? 'border-r-[3px]' : 'border-l-[3px]');
+  const borderColor = variant === 'minimal' ? 'border-slate-200' : (isRight ? color.border.replace('border-l-', 'border-r-') : color.border);
+  const bgClass = variant === 'minimal' ? 'bg-transparent' : (segment.isFirstInGroup ? color.bg : 'bg-white/60');
+  const paddingClass = variant === 'minimal' ? 'px-2 py-1' : 'px-3 py-1.5';
 
   return (
     <div
@@ -185,7 +189,7 @@ export default function TranscriptSegment({
       className={`w-full ${alignClass} ${groupMargin} group ${isEditing ? 'relative z-20' : ''}`}
     >
       <div
-        className={`${borderSide} ${borderColor} ${segment.isFirstInGroup ? color.bg : 'bg-white/60'} rounded-md px-3 py-1.5 transition-all hover:shadow-sm ${highlight} ${onSeek ? 'cursor-pointer' : ''} ${isEditing ? 'ring-2 ring-indigo-300 ring-inset shadow-md' : ''}`}
+        className={`${borderSide} ${borderColor} ${bgClass} rounded-md ${paddingClass} transition-all ${variant === 'minimal' ? 'hover:bg-slate-50/30' : 'hover:shadow-sm'} ${highlight} ${onSeek ? 'cursor-pointer' : ''} ${isEditing ? 'ring-2 ring-indigo-300 ring-inset shadow-md' : ''}`}
         onClick={onSeek}
         onDoubleClick={(e) => { e.stopPropagation(); onEditStart(); }}
         role={onSeek ? 'button' : undefined}
@@ -193,7 +197,7 @@ export default function TranscriptSegment({
         {/* Header: avatar + name + timestamp + actions */}
         {segment.isFirstInGroup && segment.speaker && (
           <div className={`flex items-center gap-1.5 mb-1 ${isRight ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-6 h-6 rounded-full ${color.avatar} flex items-center justify-center text-[10px] font-bold shrink-0`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${variant === 'minimal' ? `bg-slate-100 ${color.text}` : color.avatar}`}>
               {avatarLetter}
             </div>
             <span className={`text-xs font-bold ${color.text} uppercase tracking-wide leading-none`}>{displayName}</span>
@@ -216,7 +220,7 @@ export default function TranscriptSegment({
             </div>
           </div>
         ) : (
-          <div className={`text-sm leading-snug text-slate-800 ${segment.isFirstInGroup && segment.speaker ? 'pl-[30px]' : ''} ${isRight ? 'sm:text-right' : ''}`}>
+          <div className={`text-sm ${variant === 'minimal' ? 'leading-relaxed text-slate-600' : 'leading-snug text-slate-800'} ${segment.isFirstInGroup && segment.speaker ? 'pl-[30px]' : ''} ${isRight ? 'sm:text-right' : ''}`}>
             {highlightText(segment.text, searchQuery, isActiveMatch)}
           </div>
         )}

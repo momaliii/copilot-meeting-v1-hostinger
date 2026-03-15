@@ -5,13 +5,14 @@ type Props = {
   readingTimeMins: number;
   speakerDistribution: { speaker: string; pct: number }[];
   getDisplayName: (speaker: string) => string;
+  variant?: 'default' | 'minimal';
 };
 
-export default function TranscriptStatsBar({ wordCount, readingTimeMins, speakerDistribution, getDisplayName }: Props) {
+export default function TranscriptStatsBar({ wordCount, readingTimeMins, speakerDistribution, getDisplayName, variant = 'default' }: Props) {
   const { t } = useTranslation();
   if (wordCount <= 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${variant === 'minimal' ? 'text-slate-400' : 'text-slate-500'}`}>
       <span>{t('meeting.transcriptWords', { count: wordCount })}</span>
       <span>{t('meeting.transcriptReadingTime', { minutes: readingTimeMins })}</span>
       {speakerDistribution.length > 0 && (

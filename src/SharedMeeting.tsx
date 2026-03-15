@@ -3,11 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { Clock, Zap, Loader2, AlertCircle, Mic } from 'lucide-react';
 import { formatDate } from './utils/format';
 import MeetingDetailsTabs, { type TabId } from './components/MeetingDetailsTabs';
+import MeetingDetailsTabsV2 from './components/meeting-details-v2/MeetingDetailsTabsV2';
 import { useBranding } from './contexts/BrandingContext';
+import { useMeetingDetailsDesign } from './hooks/useMeetingDetailsDesign';
 
 export default function SharedMeeting({ token }: { token: string }) {
   const { t, i18n } = useTranslation();
   const { siteName, logoUrl } = useBranding();
+  const meetingDetailsDesign = useMeetingDetailsDesign();
   const [meeting, setMeeting] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,17 +119,31 @@ export default function SharedMeeting({ token }: { token: string }) {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-          <MeetingDetailsTabs
-            analysis={analysis}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            meetingTitle={meeting.title}
-            onSendViaGmail={(subject, body) => {
-              window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
-            }}
-            showBadges={true}
-            scrollToLine={scrollToLine}
-          />
+          {meetingDetailsDesign === 'v2' ? (
+            <MeetingDetailsTabsV2
+              analysis={analysis}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              meetingTitle={meeting.title}
+              onSendViaGmail={(subject, body) => {
+                window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+              }}
+              showBadges={true}
+              scrollToLine={scrollToLine}
+            />
+          ) : (
+            <MeetingDetailsTabs
+              analysis={analysis}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              meetingTitle={meeting.title}
+              onSendViaGmail={(subject, body) => {
+                window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+              }}
+              showBadges={true}
+              scrollToLine={scrollToLine}
+            />
+          )}
         </div>
       </main>
     </div>

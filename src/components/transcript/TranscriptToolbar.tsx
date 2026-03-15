@@ -18,6 +18,7 @@ type Props = {
   onExportVtt: () => void;
   onPrint: () => void;
   hasAudio: boolean;
+  variant?: 'default' | 'minimal';
 };
 
 export default function TranscriptToolbar({
@@ -36,6 +37,7 @@ export default function TranscriptToolbar({
   onExportVtt,
   onPrint,
   hasAudio,
+  variant = 'default',
 }: Props) {
   const { t } = useTranslation();
   const [exportOpen, setExportOpen] = useState(false);
@@ -50,7 +52,9 @@ export default function TranscriptToolbar({
     return () => document.removeEventListener('mousedown', handler);
   }, [exportOpen]);
 
-  const btnClass = 'flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors min-h-[44px] sm:min-h-0';
+  const btnClass = variant === 'minimal'
+    ? 'flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50/50 border border-slate-100 rounded-lg hover:bg-slate-100/80 transition-colors min-h-[44px] sm:min-h-0'
+    : 'flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors min-h-[44px] sm:min-h-0';
   const isSearching = search.trim().length > 0;
 
   return (
@@ -63,7 +67,7 @@ export default function TranscriptToolbar({
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={t('meeting.searchTranscript')}
-            className="w-full pl-9 pr-24 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            className={`w-full pl-9 pr-24 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 ${variant === 'minimal' ? 'border border-slate-100 bg-slate-50/50' : 'border border-slate-200'}`}
           />
           {isSearching && (
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -85,7 +89,7 @@ export default function TranscriptToolbar({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+          <div className={`flex items-center rounded-lg overflow-hidden ${variant === 'minimal' ? 'border border-slate-100 bg-slate-50/50' : 'border border-slate-200'}`}>
             <button
               onClick={() => onViewModeChange('card')}
               className={`px-2.5 py-2 text-sm transition-colors min-h-[44px] sm:min-h-0 ${viewMode === 'card' ? 'bg-indigo-50 text-indigo-700' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
