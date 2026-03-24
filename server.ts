@@ -112,6 +112,10 @@ async function startServer() {
     message: { error: 'Too many AI requests, please try again later.' },
   });
   app.use(['/api/analyze', '/api/translate'], (req: any, res: any, next: any) => {
+    // Job status polling must not consume per-plan AI rate limits.
+    if (req.method === 'GET' && String(req.originalUrl || '').startsWith('/api/analyze/jobs/')) {
+      return next();
+    }
     if (req.headers.authorization) {
       return planAiRateLimiter(req, res, next);
     }

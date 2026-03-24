@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "NODE_ENV=production node dist/server.mjs",
+    "start": "NODE_ENV=production node --max-old-space-size=256 dist/server.mjs",
     "dev": "tsx server.ts",
     "build": "vite build && node scripts/build-server.js",
     "build:server": "node scripts/build-server.js",

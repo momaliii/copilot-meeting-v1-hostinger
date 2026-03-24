@@ -36,6 +36,36 @@ import TourTooltip from './components/TourTooltip';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import type { AnalysisResult, Meeting } from './types/meeting';
 
+/** Poll async analysis job (server returns 202 + jobId to avoid reverse-proxy timeouts). */
+async function waitForAnalyzeJob(
+  jobId: string,
+  token: string | null,
+  signal?: AbortSignal
+): Promise<AnalysisResult> {
+  const pollMs = 2000;
+  const maxMs = 55 * 60 * 1000;
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const r = await fetch(`/api/analyze/jobs/${jobId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal,
+    });
+    const text = await r.text();
+    let j: any;
+    try {
+      j = JSON.parse(text);
+    } catch {
+      throw new Error(text || 'Invalid response while checking analysis status');
+    }
+    if (!r.ok) throw new Error(j?.error || text || `Server returned ${r.status}`);
+    if (j.status === 'completed' && j.result) return j.result as AnalysisResult;
+    if (j.status === 'failed') throw new Error(j.error || 'Analysis failed');
+    await new Promise((res) => setTimeout(res, pollMs));
+  }
+  throw new Error('Analysis is taking longer than expected. Please refresh and check your meeting later.');
+}
+
 const LANGUAGE_OPTIONS = [
   { value: 'Original Language', label: 'Original Language (Auto-detect)' },
   { value: 'English', label: 'English' },
@@ -1908,6 +1938,12 @@ export default function App() {
       } catch {
         parsed = null;
       }
+      if (res.status === 202 && parsed?.jobId) {
+        const result = await waitForAnalyzeJob(parsed.jobId, token, controller.signal);
+        setAnalysis(result);
+        saveMeeting(result, blob, language);
+        return;
+      }
       if (!res.ok) {
         const errMsg = parsed?.error || text || `Server returned ${res.status}`;
         throw new Error(errMsg);
@@ -2103,19 +2139,25 @@ export default function App() {
       } catch {
         parsed = null;
       }
-      if (!res.ok) throw new Error(parsed?.error || text || `Server returned ${res.status}`);
-      if (!parsed) throw new Error('Invalid response from server');
+      let analysisPayload: AnalysisResult;
+      if (res.status === 202 && parsed?.jobId) {
+        analysisPayload = await waitForAnalyzeJob(parsed.jobId, token);
+      } else {
+        if (!res.ok) throw new Error(parsed?.error || text || `Server returned ${res.status}`);
+        if (!parsed) throw new Error('Invalid response from server');
+        analysisPayload = parsed;
+      }
 
       const updatedMeeting: Meeting = {
         ...meeting,
-        analysis: parsed,
-        originalAnalysis: parsed,
+        analysis: analysisPayload,
+        originalAnalysis: analysisPayload,
         analysisLanguage: language,
         translationCache: {},
       };
       await saveMeetingToDB(updatedMeeting);
       setMeetings(meetings.map(m => m.id === currentMeetingId ? updatedMeeting : m));
-      setAnalysis(parsed);
+      setAnalysis(analysisPayload);
     } catch (err: any) {
       setError('Failed to re-analyze. ' + (err.message || 'Please try again.'));
       console.error(err);
